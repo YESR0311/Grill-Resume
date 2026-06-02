@@ -15,9 +15,8 @@ import {
   VerticalAlign,
   WidthType,
 } from "docx";
-import type { ResumeDocument } from "@/features/resume/types";
+import type { LayoutBlock, LayoutBullet, LayoutSchema } from "@/features/layout/schema";
 
-const FONT = "Microsoft YaHei";
 const NAVY = "16324F";
 const TEAL = "2F6F73";
 const PALE = "EEF6F6";
@@ -25,6 +24,14 @@ const LINE = "B7D7D8";
 const MUTED = "64748B";
 const DARK = "111827";
 const WHITE = "FFFFFF";
+
+type DocxRenderContext = {
+  fontCJK: string;
+  fontLatin: string;
+  accentColor: string;
+  baseSize: number;
+  line: number;
+};
 
 function hasText(value: string | undefined | null): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -34,42 +41,57 @@ function join(parts: (string | undefined)[], sep = " · "): string {
   return parts.filter(hasText).map((item) => item.trim()).join(sep);
 }
 
-function run(text: string, options: { bold?: boolean; size?: number; color?: string } = {}): TextRun {
+function docxColor(value: string | undefined, fallback: string): string {
+  const normalized = value?.trim().replace(/^#/, "");
+  return normalized && /^[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toUpperCase() : fallback;
+}
+
+function context(schema: LayoutSchema): DocxRenderContext {
+  return {
+    fontCJK: schema.theme.fontCJK,
+    fontLatin: schema.theme.fontLatin,
+    accentColor: docxColor(schema.theme.accentColor, TEAL),
+    baseSize: Math.round(schema.theme.baseFontPt * 2),
+    line: Math.round(schema.theme.lineSpacing * 240),
+  };
+}
+
+function run(ctx: DocxRenderContext, text: string, options: { bold?: boolean; size?: number; color?: string } = {}): TextRun {
   return new TextRun({
     text,
     bold: options.bold,
-    size: options.size ?? 21,
+    size: options.size ?? ctx.baseSize,
     color: options.color ?? DARK,
-    font: { ascii: "Calibri", eastAsia: FONT },
+    font: { ascii: ctx.fontLatin, eastAsia: ctx.fontCJK },
   });
 }
 
-function paragraph(text: string, options: { bold?: boolean; size?: number; color?: string; center?: boolean; after?: number } = {}): Paragraph {
+function paragraph(ctx: DocxRenderContext, text: string, options: { bold?: boolean; size?: number; color?: string; center?: boolean; after?: number } = {}): Paragraph {
   return new Paragraph({
     alignment: options.center ? AlignmentType.CENTER : AlignmentType.LEFT,
-    spacing: { line: 276, after: options.after ?? 56 },
-    children: [run(text, options)],
+    spacing: { line: ctx.line, after: options.after ?? 56 },
+    children: [run(ctx, text, options)],
   });
 }
 
-function multi(runs: TextRun[], options: { after?: number; center?: boolean } = {}): Paragraph {
+function multi(ctx: DocxRenderContext, runs: TextRun[], options: { after?: number; center?: boolean } = {}): Paragraph {
   return new Paragraph({
     alignment: options.center ? AlignmentType.CENTER : AlignmentType.LEFT,
-    spacing: { line: 276, after: options.after ?? 56 },
+    spacing: { line: ctx.line, after: options.after ?? 56 },
     children: runs,
   });
 }
 
-function bullet(text: string): Paragraph {
+function bullet(ctx: DocxRenderContext, text: string): Paragraph {
   return new Paragraph({
-    spacing: { line: 276, after: 42 },
+    spacing: { line: ctx.line, after: 42 },
     bullet: { level: 0 },
-    children: [run(text)],
+    children: [run(ctx, text)],
   });
 }
 
-function confirmedBullets(items: { text: string; status: "draft" | "confirmed" | "archived" }[]): string[] {
-  return items.filter((item) => item.status === "confirmed" && hasText(item.text)).map((item) => item.text.trim());
+function bulletText(item: LayoutBullet): string {
+  return item.displayTextOverride?.trim() || item.text;
 }
 
 function noBorders() {
@@ -83,7 +105,7 @@ function noBorders() {
   };
 }
 
-function cell(children: (Paragraph | Table)[], options: { width: number; fill?: string; vertical?: typeof VerticalAlign.CENTER } ): TableCell {
+function cell(children: (Paragraph | Table)[], options: { width: number; fill?: string; vertical?: typeof VerticalAlign.CENTER }): TableCell {
   return new TableCell({
     width: { size: options.width, type: WidthType.PERCENTAGE },
     shading: options.fill ? { type: ShadingType.CLEAR, fill: options.fill, color: "auto" } : undefined,
@@ -97,107 +119,104 @@ function table(rows: TableRow[]): Table {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: noBorders(), rows });
 }
 
-function headerBlock(document: ResumeDocument): Table {
-  const name = document.basics.name || document.title || "我的简历";
-  const headline = document.basics.targetRole || document.target?.role || "目标岗位";
-  const meta = [document.basics.city, document.target?.industry].filter(hasText).join("｜");
-  const contact = [document.basics.phone, document.basics.email, ...document.basics.links.map((item) => item.url)].filter(hasText).join("｜");
-
+function headerBlock(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind: "header" }>): Table {
   return table([
     new TableRow({
       children: [
         cell([
-          multi([run(name, { bold: true, size: 42, color: WHITE }), run(`  ${headline}`, { size: 22, color: "D7ECEE" })], { after: 70 }),
-          ...(hasText(meta) ? [paragraph(meta, { color: WHITE, after: 44 })] : []),
-          ...(hasText(contact) ? [paragraph(contact, { color: WHITE, after: 0 })] : []),
+          multi(ctx, [run(ctx, block.name, { bold: true, size: 42, color: WHITE }), run(ctx, `  ${block.targetRole ?? "目标岗位"}`, { size: 22, color: "D7ECEE" })], { after: 70 }),
+          ...(block.metaLines.length > 0 ? [paragraph(ctx, block.metaLines.join("｜"), { color: WHITE, after: 44 })] : []),
+          ...(block.contacts.length > 0 ? [paragraph(ctx, block.contacts.join("｜"), { color: WHITE, after: 0 })] : []),
         ], { width: 76, fill: NAVY }),
         cell([
-          paragraph("照片", { center: true, bold: true, size: 24, color: TEAL, after: 20 }),
-          paragraph("35 × 45mm", { center: true, size: 18, color: MUTED, after: 20 }),
-          paragraph("商务证件照", { center: true, size: 18, color: MUTED, after: 0 }),
+          paragraph(ctx, "照片", { center: true, bold: true, size: 24, color: ctx.accentColor, after: 20 }),
+          paragraph(ctx, `${block.photo?.widthMm ?? 35} × ${block.photo?.heightMm ?? 45}mm`, { center: true, size: 18, color: MUTED, after: 20 }),
+          paragraph(ctx, "商务证件照", { center: true, size: 18, color: MUTED, after: 0 }),
         ], { width: 24, fill: PALE, vertical: VerticalAlign.CENTER }),
       ],
     }),
   ]);
 }
 
-function heading(en: string, cn: string): Paragraph {
+function heading(ctx: DocxRenderContext, en: string | undefined, cn: string): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 210, after: 90 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: LINE } },
-    children: [run(en, { bold: true, size: 22, color: NAVY }), run(`  ${cn}`, { bold: true, size: 22, color: TEAL })],
+    children: [
+      ...(en ? [run(ctx, en, { bold: true, size: 22, color: NAVY })] : []),
+      run(ctx, en ? `  ${cn}` : cn, { bold: true, size: 22, color: ctx.accentColor }),
+    ],
   });
 }
 
-function entryTitle(left: string, right?: string): Paragraph {
-  return multi([
-    run(left, { bold: true, size: 22, color: DARK }),
-    ...(hasText(right) ? [run(`    ${right}`, { size: 18, color: MUTED })] : []),
+function entryTitle(ctx: DocxRenderContext, left: string, right?: string): Paragraph {
+  return multi(ctx, [
+    run(ctx, left, { bold: true, size: 22, color: DARK }),
+    ...(hasText(right) ? [run(ctx, `    ${right}`, { size: 18, color: MUTED })] : []),
   ], { after: 38 });
 }
 
-function summary(document: ResumeDocument): Paragraph[] {
+function renderProfile(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind: "profile" }>): Paragraph[] {
   const out: Paragraph[] = [];
-  if (document.summary?.headline) out.push(paragraph(document.summary.headline));
-  for (const item of document.summary?.bullets ?? []) {
-    if (item.status === "confirmed" && hasText(item.text)) out.push(bullet(item.text));
-  }
-  if (out.length > 0) return [heading("PROFILE", "个人优势"), ...out];
-  return [];
+  if (block.headline) out.push(paragraph(ctx, block.headline));
+  for (const item of block.bullets) out.push(bullet(ctx, bulletText(item)));
+  return out;
 }
 
-function experiences(document: ResumeDocument): Paragraph[] {
-  const out: Paragraph[] = [];
-  for (const item of document.experiences) {
-    const title = join([item.organization, item.role]);
-    if (hasText(title)) out.push(entryTitle(title, join([item.location, join([item.startDate, item.endDate], " - ")])));
-    for (const text of confirmedBullets(item.bullets).slice(0, 4)) out.push(bullet(text));
-  }
-  return out.length > 0 ? [heading("EXPERIENCE", "工作经历"), ...out] : [];
+function renderExperience(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind: "experience" }>): Paragraph[] {
+  return [
+    entryTitle(ctx, join([block.org, block.role]), join([block.location, block.period])),
+    ...block.bullets.map((item) => bullet(ctx, bulletText(item))),
+  ];
 }
 
-function projects(document: ResumeDocument): Paragraph[] {
-  const out: Paragraph[] = [];
-  for (const item of document.projects) {
-    const title = join([item.name, item.role]);
-    if (hasText(title)) out.push(entryTitle(title, join([item.startDate, item.endDate], " - ")));
-    if (item.techStack.length > 0) out.push(paragraph(`技术栈：${item.techStack.filter(hasText).join("，")}`));
-    if (hasText(item.goal)) out.push(paragraph(`目标：${item.goal}`));
-    for (const text of confirmedBullets(item.bullets).slice(0, 3)) out.push(bullet(text));
-  }
-  return out.length > 0 ? [heading("PROJECT", "项目经历"), ...out] : [];
+function renderProject(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind: "project" }>): Paragraph[] {
+  return [
+    entryTitle(ctx, join([block.name, block.role]), block.period),
+    ...block.details.map((item) => paragraph(ctx, item.text)),
+    ...block.bullets.map((item) => bullet(ctx, bulletText(item))),
+  ];
 }
 
-function education(document: ResumeDocument): Paragraph[] {
-  const out = document.education.flatMap((item) => {
-    const rows = [entryTitle(join([item.school, item.degree, item.major]), join([item.startDate, item.endDate], " - "))];
-    const meta = join([item.gpa ? `GPA ${item.gpa}` : undefined, item.rank]);
-    if (hasText(meta)) rows.push(paragraph(meta));
-    for (const honor of item.honors ?? []) if (hasText(honor)) rows.push(bullet(honor));
-    return rows;
-  });
-  return out.length > 0 ? [heading("EDUCATION", "教育背景"), ...out] : [];
+function renderEducation(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind: "education" }>): Paragraph[] {
+  return [
+    entryTitle(ctx, join([block.org, block.degree]), block.period),
+    ...(block.meta ? [paragraph(ctx, block.meta)] : []),
+    ...block.notes.map((note) => bullet(ctx, note.text)),
+  ];
 }
 
-function skills(document: ResumeDocument): Paragraph[] {
-  const out = document.skills.flatMap((group) => group.items.length > 0 ? [paragraph(`${group.name}：${group.items.filter(hasText).join("，")}`)] : []);
-  const extras = [
-    ...document.certificates.map((item) => join([item.name, item.issuer, item.date])),
-    ...document.awards.map((item) => join([item.name, item.issuer, item.date, item.description])),
-  ].filter(hasText);
-  for (const item of extras) out.push(bullet(item));
-  return out.length > 0 ? [heading("SKILLS", "技能证书"), ...out] : [];
+function renderSkills(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind: "skills" }>): Paragraph[] {
+  return [
+    ...block.groups.map((group) => paragraph(ctx, `${group.label}：${group.items.join("，")}`)),
+    ...block.extras.map((item) => bullet(ctx, item.text)),
+  ];
 }
 
-export async function buildZhCleanDocx(document: ResumeDocument, footer?: string): Promise<Buffer> {
-  const children: (Paragraph | Table)[] = [headerBlock(document)];
-  children.push(...summary(document), ...experiences(document), ...projects(document), ...education(document), ...skills(document));
-  if (hasText(footer)) children.push(paragraph(footer, { color: MUTED }));
+function renderBlock(ctx: DocxRenderContext, block: LayoutBlock): (Paragraph | Table)[] {
+  if (block.kind === "header") return [headerBlock(ctx, block)];
+  if (block.kind === "section-title") return [heading(ctx, block.en, block.zh)];
+  if (block.kind === "profile") return renderProfile(ctx, block);
+  if (block.kind === "experience") return renderExperience(ctx, block);
+  if (block.kind === "project") return renderProject(ctx, block);
+  if (block.kind === "education") return renderEducation(ctx, block);
+  return renderSkills(ctx, block);
+}
+
+function documentTitle(schema: LayoutSchema): string {
+  const header = schema.blocks.find((block): block is Extract<LayoutBlock, { kind: "header" }> => block.kind === "header");
+  return header?.name ?? "Grill-Resume";
+}
+
+export async function buildZhCleanDocx(schema: LayoutSchema, footer?: string): Promise<Buffer> {
+  const ctx = context(schema);
+  const children = schema.blocks.flatMap((block) => renderBlock(ctx, block));
+  if (hasText(footer)) children.push(paragraph(ctx, footer, { color: MUTED }));
 
   const doc = new Document({
     creator: "Resume Coach",
-    title: document.title,
+    title: documentTitle(schema),
     sections: [{ properties: { page: { margin: { top: 560, right: 560, bottom: 560, left: 560 } } }, children }],
   });
   return await Packer.toBuffer(doc);

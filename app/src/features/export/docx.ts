@@ -1,15 +1,13 @@
 import "server-only";
 
+import { project } from "@/features/layout/project";
+import type { LayoutBlock, LayoutSchema } from "@/features/layout/schema";
 import type { ResumeDocument } from "@/features/resume/types";
+import { buildDocxGapReport, type DocxGapReport } from "./gap-report";
 import { buildZhCleanDocx } from "./templates/zh-clean";
 
-export type DocxGapReport = {
-  confirmedExperienceBullets: number;
-  excludedExperienceBullets: number;
-  confirmedProjectBullets: number;
-  excludedProjectBullets: number;
-  missingBasics: string[];
-};
+export { buildDocxGapReport };
+export type { DocxGapReport };
 
 export type ResumeDocxResult = {
   buffer: Buffer;
@@ -18,34 +16,11 @@ export type ResumeDocxResult = {
 
 export type ResumeDocxOptions = {
   partialMode?: boolean;
+  gapReport?: DocxGapReport;
 };
 
-function countBullets(items: { bullets: { status: "draft" | "confirmed" | "archived" }[] }[]): { confirmed: number; excluded: number } {
-  let confirmed = 0;
-  let excluded = 0;
-  for (const item of items) {
-    for (const bullet of item.bullets) {
-      if (bullet.status === "confirmed") confirmed += 1;
-      else excluded += 1;
-    }
-  }
-  return { confirmed, excluded };
-}
-
-export function buildDocxGapReport(document: ResumeDocument): DocxGapReport {
-  const experience = countBullets(document.experiences);
-  const project = countBullets(document.projects);
-  const missingBasics: string[] = [];
-  if (!document.basics.name?.trim()) missingBasics.push("姓名");
-  if (!document.basics.phone?.trim()) missingBasics.push("电话");
-  if (!document.basics.email?.trim()) missingBasics.push("邮箱");
-  return {
-    confirmedExperienceBullets: experience.confirmed,
-    excludedExperienceBullets: experience.excluded,
-    confirmedProjectBullets: project.confirmed,
-    excludedProjectBullets: project.excluded,
-    missingBasics,
-  };
+function isLayoutSchema(input: ResumeDocument | LayoutSchema): input is LayoutSchema {
+  return "version" in input && input.version === "layout-v1";
 }
 
 function footer(report: DocxGapReport, options: ResumeDocxOptions): string | undefined {
@@ -60,10 +35,35 @@ function footer(report: DocxGapReport, options: ResumeDocxOptions): string | und
   return `导出缺口：${gaps.join("；")}`;
 }
 
-export async function renderResumeDocx(document: ResumeDocument, options: ResumeDocxOptions = {}): Promise<ResumeDocxResult> {
-  const report = buildDocxGapReport(document);
+function schemaReport(schema: LayoutSchema): DocxGapReport {
+  const report: DocxGapReport = {
+    confirmedExperienceBullets: 0,
+    excludedExperienceBullets: 0,
+    confirmedProjectBullets: 0,
+    excludedProjectBullets: 0,
+    missingBasics: [],
+  };
+  for (const block of schema.blocks) {
+    if (block.kind === "experience") report.confirmedExperienceBullets += block.bullets.length;
+    if (block.kind === "project") report.confirmedProjectBullets += block.bullets.length;
+  }
+  const header = schema.blocks.find((block): block is Extract<LayoutBlock, { kind: "header" }> => block.kind === "header");
+  if (!header?.name.trim()) report.missingBasics.push("姓名");
+  return report;
+}
+
+function projectInput(input: ResumeDocument | LayoutSchema, options: ResumeDocxOptions): { schema: LayoutSchema; report: DocxGapReport } {
+  if (isLayoutSchema(input)) {
+    return { schema: input, report: options.gapReport ?? schemaReport(input) };
+  }
+  const projected = project(input);
+  return { schema: projected.schema, report: projected.gap };
+}
+
+export async function renderResumeDocx(input: ResumeDocument | LayoutSchema, options: ResumeDocxOptions = {}): Promise<ResumeDocxResult> {
+  const { schema, report } = projectInput(input, options);
   return {
-    buffer: await buildZhCleanDocx(document, footer(report, options)),
+    buffer: await buildZhCleanDocx(schema, footer(report, options)),
     report,
   };
 }

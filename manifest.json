@@ -347,6 +347,7 @@
         "copying HTML export pipeline",
         "direct code copy outside explicitly attributed Apache-2.0 snippets"
       ],
+      "borrowMode": "rmx-abstract: page-element vocabulary, surface modes, design-system constraints, and template discipline only; no source code copied into owned implementation",
       "files": 340,
       "sizeMB": 18,
       "licenseStatus": "ok",
