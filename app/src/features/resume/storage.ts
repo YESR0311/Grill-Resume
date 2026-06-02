@@ -12,11 +12,13 @@ import {
   getResumeDraftPath,
   getResumeExportDir,
   getResumeExportPath,
+  getResumeLayoutOverridesPath,
   getResumeVersionDir,
   getResumeVersionPath,
   getVariantResumeDir,
   getVariantResumePath,
 } from "@/lib/workspace";
+import { normalizeLayoutOverrides, type LayoutOverrides } from "@/features/layout/overrides";
 import { resumeDocumentSchema } from "./schema";
 import { readIssueTargetBullet, updateIssueTargetText } from "./issue-targets";
 import type { IssueOptimizationDraft } from "@/features/ai/optimize-issue";
@@ -380,6 +382,40 @@ export async function getProjectResume(projectId: string, resumeId: string): Pro
     resume,
     document: await readResume(resume.filePath),
   };
+}
+
+export async function readLayoutOverrides(projectId: string, resumeId: string): Promise<LayoutOverrides | null> {
+  const resume = readResumeRow(resumeId);
+  if (!resume || resume.projectId !== projectId) return null;
+  const safeResumePath = ensureWorkspaceFilePath(resume.filePath);
+  const overridesPath = getResumeLayoutOverridesPath(safeResumePath);
+  try {
+    const json = JSON.parse(await fs.readFile(overridesPath, "utf-8"));
+    return normalizeLayoutOverrides(json, resume.id);
+  } catch {
+    return normalizeLayoutOverrides(null, resume.id);
+  }
+}
+
+export async function writeLayoutOverrides(input: {
+  projectId: string;
+  resumeId: string;
+  overrides: LayoutOverrides;
+}): Promise<LayoutOverrides> {
+  const resume = readResumeRow(input.resumeId);
+  if (!resume || resume.projectId !== input.projectId) throw new ResumeStorageError("简历不存在");
+
+  const safeResumePath = ensureWorkspaceFilePath(resume.filePath);
+  const overridesPath = getResumeLayoutOverridesPath(safeResumePath);
+  const now = new Date().toISOString();
+  const overrides = {
+    ...normalizeLayoutOverrides(input.overrides, resume.id),
+    updatedAt: now,
+  };
+  await fs.mkdir(path.dirname(overridesPath), { recursive: true });
+  await fs.writeFile(overridesPath, JSON.stringify(overrides, null, 2), "utf-8");
+  updateResumeTimestamps(resume, now);
+  return overrides;
 }
 
 export function listVersions(resumeId: string): VersionRecord[] {

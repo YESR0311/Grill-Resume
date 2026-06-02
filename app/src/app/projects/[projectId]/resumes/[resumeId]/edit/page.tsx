@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { generateDraft } from "@/features/ai/generate-draft";
 import { listModelConfigs } from "@/features/ai/model-configs";
+import { LayoutEditor } from "@/features/editor/layout-editor";
+import { buildMicroEditEvidenceMap } from "@/features/editor/grounding";
+import { project as projectLayout } from "@/features/layout/project";
 import {
   getProject,
   getProjectResume,
@@ -12,11 +15,11 @@ import {
   parseExperiences,
   parseProjects,
   parseSkills,
+  readLayoutOverrides,
   restoreResumeVersion,
   saveResumeVersion,
   updateResumeSections,
 } from "@/features/resume/storage";
-import type { ResumeDocument } from "@/features/resume/types";
 
 export const dynamic = "force-dynamic";
 
@@ -87,85 +90,6 @@ function first<T>(items: T[]): T | undefined {
   return items[0];
 }
 
-function ResumePreview({ document }: { document: ResumeDocument }) {
-  return (
-    <article className="min-h-[760px] rounded-2xl bg-white p-8 text-slate-950 shadow-sm ring-1 ring-slate-200">
-      <header className="border-b border-slate-200 pb-4">
-        <h2 className="text-3xl font-semibold tracking-tight">{document.basics.name || "姓名"}</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          {[document.basics.targetRole, document.basics.city, document.basics.phone, document.basics.email]
-            .filter(Boolean)
-            .join(" · ") || "目标岗位 · 城市 · 联系方式"}
-        </p>
-      </header>
-
-      {document.education.length > 0 ? (
-        <section className="mt-6">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">教育经历</h3>
-          {document.education.map((item) => (
-            <div key={item.id} className="mt-3">
-              <div className="flex justify-between gap-4 text-sm font-medium">
-                <span>{item.school}</span>
-                <span className="text-slate-500">{[item.startDate, item.endDate].filter(Boolean).join(" - ")}</span>
-              </div>
-              <p className="mt-1 text-sm text-slate-600">{[item.degree, item.major].filter(Boolean).join(" · ")}</p>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {document.experiences.length > 0 ? (
-        <section className="mt-6">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">实习 / 工作经历</h3>
-          {document.experiences.map((item) => (
-            <div key={item.id} className="mt-3">
-              <div className="flex justify-between gap-4 text-sm font-medium">
-                <span>{item.organization}</span>
-                <span className="text-slate-500">{[item.startDate, item.endDate].filter(Boolean).join(" - ")}</span>
-              </div>
-              <p className="mt-1 text-sm text-slate-600">{item.role}</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-700">
-                {item.bullets.map((bullet) => (
-                  <li key={bullet.id}>{bullet.text}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {document.projects.length > 0 ? (
-        <section className="mt-6">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">项目经历</h3>
-          {document.projects.map((item) => (
-            <div key={item.id} className="mt-3">
-              <div className="flex justify-between gap-4 text-sm font-medium">
-                <span>{item.name}</span>
-                <span className="text-slate-500">{item.techStack.join(" / ")}</span>
-              </div>
-              {item.role ? <p className="mt-1 text-sm text-slate-600">{item.role}</p> : null}
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-700">
-                {item.bullets.map((bullet) => (
-                  <li key={bullet.id}>{bullet.text}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {document.skills.length > 0 ? (
-        <section className="mt-6">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">技能</h3>
-          <p className="mt-3 text-sm leading-6 text-slate-700">
-            {document.skills.flatMap((group) => group.items).join("、")}
-          </p>
-        </section>
-      ) : null}
-    </article>
-  );
-}
-
 export default async function EditResumePage({ params }: Props) {
   const { projectId, resumeId } = await params;
   const project = getProject(projectId);
@@ -175,6 +99,10 @@ export default async function EditResumePage({ params }: Props) {
   if (!current) notFound();
 
   const { resume, document } = current;
+  const layoutOverrides = await readLayoutOverrides(project.id, resume.id);
+  if (!layoutOverrides) notFound();
+  const layoutProjection = projectLayout(document);
+  const microEditEvidenceMap = buildMicroEditEvidenceMap(document);
   const versions = listVersions(resume.id);
   const modelConfigs = await listModelConfigs();
   const hasDefaultModel = modelConfigs.some((config) => config.isDefault);
@@ -213,8 +141,18 @@ export default async function EditResumePage({ params }: Props) {
           </p>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-6">
+        <LayoutEditor
+          projectId={project.id}
+          resumeId={resume.id}
+          baseSchema={layoutProjection.schema}
+          initialOverrides={layoutOverrides}
+          evidenceMap={microEditEvidenceMap}
+        />
+
+        <details className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-700">事实表单 fallback</summary>
+          <section className="mt-6 grid gap-6 lg:grid-cols-2">
+            <div className="space-y-6">
             <form action={generateDraftAction.bind(null, project.id, resumeId)} className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -364,10 +302,8 @@ export default async function EditResumePage({ params }: Props) {
             </form>
           </div>
 
-          <div className="lg:sticky lg:top-6 lg:self-start">
-            <ResumePreview document={document} />
-          </div>
-        </section>
+          </section>
+        </details>
       </div>
     </main>
   );

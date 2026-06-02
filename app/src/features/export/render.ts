@@ -1,3 +1,4 @@
+import type { LayoutOverrides } from "@/features/layout/overrides";
 import type { ExportFormat, ResumeDocument } from "@/features/resume/types";
 import { buildAtsDocx } from "./templates/ats";
 import { buildVisualDocx } from "./templates/zh-visual";
@@ -5,7 +6,11 @@ import { renderJsonResume } from "./json-resume";
 import { renderPdf } from "./pdf";
 import { renderResumeDocx } from "./docx";
 
-export async function renderExport(document: ResumeDocument, format: ExportFormat, options: { partialMode?: boolean } = {}): Promise<string | Buffer> {
+export async function renderExport(
+  document: ResumeDocument,
+  format: ExportFormat,
+  options: { partialMode?: boolean; layoutOverrides?: LayoutOverrides } = {},
+): Promise<string | Buffer> {
   switch (format) {
     case "json-resume":
       return renderJsonResume(document);

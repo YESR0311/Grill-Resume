@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { renderExport } from "@/features/export/render";
-import { createExportRecord, getProject, getProjectResume, listExports } from "@/features/resume/storage";
+import { createExportRecord, getProject, getProjectResume, listExports, readLayoutOverrides } from "@/features/resume/storage";
 import type { ExportFormat } from "@/features/resume/types";
 
 export const dynamic = "force-dynamic";
@@ -34,10 +34,14 @@ async function exportAction(projectId: string, resumeId: string, format: ExportF
 
   const current = await getProjectResume(projectId, resumeId);
   if (!current) notFound();
+  const layoutOverrides = await readLayoutOverrides(projectId, resumeId);
   await createExportRecord({
     resumeId,
     format,
-    content: await renderExport(current.document, format, { partialMode: String(formData.get("partialMode") ?? "") === "1" }),
+    content: await renderExport(current.document, format, {
+      partialMode: String(formData.get("partialMode") ?? "") === "1",
+      layoutOverrides: format === "docx-zh-clean" ? layoutOverrides ?? undefined : undefined,
+    }),
   });
   redirect(`/projects/${projectId}/resumes/${resumeId}/export`);
 }

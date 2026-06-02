@@ -1,5 +1,6 @@
 import { buildDocxGapReport, type DocxGapReport } from "@/features/export/gap-report";
 import type { ResumeBullet, ResumeDocument } from "@/features/resume/types";
+import { applyLayoutOverrides, type LayoutOverrides } from "./overrides";
 import type { LayoutBlock, LayoutBullet, LayoutProjection, LayoutSchema, LayoutTextItem } from "./schema";
 
 function hasText(value: string | undefined | null): value is string {
@@ -167,7 +168,7 @@ function partialMode(gap: DocxGapReport, blocks: LayoutBlock[]): boolean {
   return gap.missingBasics.length > 0 || !hasVisibleConfirmedContent(blocks);
 }
 
-export function project(document: ResumeDocument): LayoutProjection {
+export function project(document: ResumeDocument, overrides?: LayoutOverrides): LayoutProjection {
   const blocks: LayoutBlock[] = [
     {
       kind: "header",
@@ -184,8 +185,9 @@ export function project(document: ResumeDocument): LayoutProjection {
   blocks.push(...experienceBlocks(document), ...projectBlocks(document), ...educationBlocks(document), ...skillsBlock(document));
 
   const gap = buildDocxGapReport(document);
+  const schema = defaultSchema(partialMode(gap, blocks), blocks);
   return {
-    schema: defaultSchema(partialMode(gap, blocks), blocks),
+    schema: applyLayoutOverrides(schema, overrides),
     gap,
   };
 }

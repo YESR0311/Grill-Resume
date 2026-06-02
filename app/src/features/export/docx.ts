@@ -1,6 +1,7 @@
 import "server-only";
 
 import { project } from "@/features/layout/project";
+import type { LayoutOverrides } from "@/features/layout/overrides";
 import type { LayoutBlock, LayoutSchema } from "@/features/layout/schema";
 import type { ResumeDocument } from "@/features/resume/types";
 import { buildDocxGapReport, type DocxGapReport } from "./gap-report";
@@ -17,6 +18,7 @@ export type ResumeDocxResult = {
 export type ResumeDocxOptions = {
   partialMode?: boolean;
   gapReport?: DocxGapReport;
+  layoutOverrides?: LayoutOverrides;
 };
 
 function isLayoutSchema(input: ResumeDocument | LayoutSchema): input is LayoutSchema {
@@ -56,7 +58,7 @@ function projectInput(input: ResumeDocument | LayoutSchema, options: ResumeDocxO
   if (isLayoutSchema(input)) {
     return { schema: input, report: options.gapReport ?? schemaReport(input) };
   }
-  const projected = project(input);
+  const projected = project(input, options.layoutOverrides);
   return { schema: projected.schema, report: projected.gap };
 }
 
