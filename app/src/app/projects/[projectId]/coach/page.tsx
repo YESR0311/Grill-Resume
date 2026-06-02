@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { applyEvidenceBulletDraftAction, generateEvidenceBulletDraftAction, promoteCoachQaAnswerToEvidenceAction, runCoachResearchAction, runCoachSearchEvaluationAction, saveCoachQaAnswerAction } from "@/features/coach/actions";
+import { applyEvidenceBulletDraftAction, generateEvidenceBulletDraftAction, promoteCoachQaAnswerToEvidenceAction, runCoachResearchAction, runCoachSearchEvaluationAction, runGrillEnhancementAction, saveCoachQaAnswerAction } from "@/features/coach/actions";
 import { buildExperienceQuestionQueue, type CoachQuestionKind, type CoachQaTurn, type CoachQaTurnStatus, type ExperienceDeepDiveItem } from "@/features/coach/questions";
 import { buildGrillSession, type CoachGrillSession } from "@/features/coach/conversation/engine";
+import { buildGrillEnhancementRequest, type GrillEnhancement } from "@/features/coach/conversation/llm-enhance";
 import { buildResearchQueue, type CoachResearchFinding, type CoachResearchQueueItem, type CoachResearchReport } from "@/features/coach/research";
-import { getLatestCoachResearchReport, listCoachQaAnswers, listCoachResearchReports, readCoachResearchReport, type CoachQaAnswer, type CoachResearchReportRecord } from "@/features/coach/storage";
+import { getLatestCoachResearchReport, listCoachQaAnswers, listCoachResearchReports, readCoachGrillEnhancement, readCoachResearchReport, type CoachQaAnswer, type CoachResearchReportRecord } from "@/features/coach/storage";
+import { listModelConfigs } from "@/features/ai/model-configs";
+import { createPrivacyPreviewToken } from "@/features/privacy/preview";
 import { getActivePendingDraft, getActivePendingDraftForEvidence, hasPendingDraftForFinding, type CoachBulletDraft } from "@/features/coach/bullet-drafts";
 import { analyzeJdCoverage, type JdCoverageResult } from "@/features/coach/jd-coverage";
 import { getProject, listResumes, readResume } from "@/features/resume/storage";
@@ -51,6 +54,8 @@ type CoachSearchParams = {
   evidenceBulletCode?: string;
   evidence?: string;
   question?: string;
+  grillEnhanceStatus?: string;
+  grillEnhanceCode?: string;
 };
 
 type CoachFlowStep = {
@@ -285,6 +290,18 @@ function readableQaEvidenceError(code: string | undefined): string | null {
   return "Q&A 入图失败，请刷新后重试。";
 }
 
+function readableGrillEnhanceError(code: string | undefined): string | null {
+  if (!code) return null;
+  if (code === "missing-project") return "项目不存在或已被移动，未运行 AI clarify。";
+  if (code === "missing-resume") return "当前项目没有可用于追问的主简历。";
+  if (code === "missing-active-turn") return "当前没有可增强的追问 turn。";
+  if (code === "missing-model-config") return "需配置默认模型后才能运行 AI clarify；deterministic 追问仍可用。";
+  if (code === "privacy-not-confirmed") return "请先确认 AI clarify 隐私预览，再调用 provider。";
+  if (code === "unavailable") return "AI clarify 暂不可用，已降级为 deterministic 追问。";
+  if (code === "persist-failed") return "AI clarify 已返回但本地保存失败；未写入简历事实。";
+  return "AI clarify 未完成，deterministic 追问仍可继续。";
+}
+
 function readableEvidenceBulletError(code: string | undefined): string | null {
   if (!code) return null;
   if (code === "resume-not-found") return "简历不存在或不属于当前项目，未生成候选正文。";
@@ -396,6 +413,7 @@ function readableResearchError(value: string | undefined): string | null {
   if (value === "resume-read-failed") return "简历读取失败，未运行调研。";
   if (value === "provider-timeout") return "模型调研请求超时，未生成报告，也未写入简历。";
   if (value === "provider-failed") return "模型调研失败，请检查模型配置和网络状态；未写入简历。";
+  if (value === "search-unavailable") return "搜索服务暂不可用，已降级为本地 deterministic 追问；未生成伪造引用。";
   if (value === "invalid-provider-response") return "模型返回内容无法解析为可审计报告；未写入简历。";
   if (value === "report-persist-failed") return "模型调研成功但报告持久化失败，未写入简历；请重试。";
   if (value === "report-read-failed") return "已找到报告索引，但报告文件读取失败；未写入简历。";
@@ -928,16 +946,176 @@ function EvidenceBulletDraftPanel({ projectId, resumeId, items }: { projectId: s
   );
 }
 
+function GrillEnhancementPanel({
+  projectId,
+  resumeId,
+  current,
+  enhancement,
+  hasDefaultModel,
+  preview,
+}: {
+  projectId: string;
+  resumeId?: string;
+  current?: CoachQaTurn;
+  enhancement?: GrillEnhancement;
+  hasDefaultModel: boolean;
+  preview: ReturnType<typeof createPrivacyPreviewToken> | null;
+}) {
+  const draft = enhancement?.distilledEvidenceDraft;
+  const canPromoteDraft = Boolean(resumeId && current?.answer?.status === "confirmed" && current.answer.targetSource === "experience" && draft);
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-medium text-sky-950">AI clarify</p>
+          <p className="mt-1 text-xs leading-5 text-sky-800">显式触发；结果只作为追问辅助和待确认 STAR 草稿，不写入 confirmed bullet。</p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-sky-800 ring-1 ring-sky-200">
+          {enhancement ? "已生成" : "deterministic 可用"}
+        </span>
+      </div>
+
+      {preview ? (
+        <details className="rounded-xl border border-sky-200 bg-white/70 p-3 text-xs text-sky-900">
+          <summary className="cursor-pointer font-medium">隐私预览 payload</summary>
+          <pre className="mt-3 max-h-48 overflow-auto rounded-lg bg-slate-950 p-3 text-slate-100">{preview.sanitized.preview}</pre>
+          {preview.sanitized.removedFields.length > 0 ? (
+            <p className="mt-2 text-amber-700">Removed fields: {preview.sanitized.removedFields.join(", ")}</p>
+          ) : null}
+        </details>
+      ) : null}
+
+      <form action={resumeId ? runGrillEnhancementAction.bind(null, projectId, resumeId) : undefined} className="space-y-3">
+        <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <input type="checkbox" name="privacyConfirmed" value="1" required className="mt-1" />
+          <span>我已确认：将向默认模型 provider 发送当前追问、最近 Q&A、confirmed evidence 摘要和已标记 untrusted 的 JD 片段，用于澄清/冲突/追问建议。</span>
+        </label>
+        <button
+          type="submit"
+          disabled={!resumeId || !current || !hasDefaultModel}
+          className="rounded-full bg-sky-950 px-5 py-2 text-xs font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+        >
+          生成 AI clarify
+        </button>
+      </form>
+      {!hasDefaultModel ? <p className="text-xs text-sky-800">未配置默认模型时保持 deterministic 追问，不调用 provider。</p> : null}
+
+      {enhancement ? (
+        <div className="space-y-3">
+          {enhancement.restate ? (
+            <div className="rounded-xl bg-white p-3 ring-1 ring-sky-200">
+              <p className="font-medium text-slate-950">一句话复述</p>
+              <p className="mt-2 text-slate-700">{enhancement.restate.text}</p>
+              {enhancement.restate.lowConfidence ? <p className="mt-2 text-xs text-amber-700">lowConfidence：请用户确认后再入图。</p> : null}
+            </div>
+          ) : null}
+          {enhancement.fuzzyTerms.length > 0 ? (
+            <div className="rounded-xl bg-white p-3 ring-1 ring-sky-200">
+              <p className="font-medium text-slate-950">模糊词澄清</p>
+              <ul className="mt-2 space-y-2 text-slate-700">
+                {enhancement.fuzzyTerms.map((item) => (
+                  <li key={`${item.term}:${item.question}`}>
+                    <span className="font-medium">{item.term}</span>：{item.question}{item.lowConfidence ? "（低置信）" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {enhancement.conflicts.length > 0 ? (
+            <div className="rounded-xl bg-white p-3 ring-1 ring-rose-200">
+              <p className="font-medium text-rose-900">冲突待裁决</p>
+              <ul className="mt-2 space-y-2 text-slate-700">
+                {enhancement.conflicts.map((item) => (
+                  <li key={`${item.claim}:${item.citation}`} className="rounded-lg border border-rose-100 bg-rose-50 p-3">
+                    <p>主张：{item.claim}</p>
+                    <p className="mt-1">证据：{item.evidence}</p>
+                    <p className="mt-1 text-xs text-rose-800">{item.reason} · citation: {item.citation}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {enhancement.probe ? (
+            <div className="rounded-xl bg-white p-3 ring-1 ring-sky-200">
+              <p className="font-medium text-slate-950">动态追问</p>
+              <p className="mt-2 text-slate-700">{enhancement.probe.question}</p>
+              <p className="mt-1 text-xs text-slate-500">{enhancement.probe.kind} · {enhancement.probe.reason}</p>
+            </div>
+          ) : null}
+
+          {draft ? (
+            <div className="rounded-xl bg-white p-3 ring-1 ring-sky-200">
+              <p className="font-medium text-slate-950">待确认 STAR 草稿</p>
+              {draft.lowConfidence ? <p className="mt-2 text-xs text-amber-700">lowConfidence：含被丢弃或弱 grounding 字段，需人工确认。</p> : null}
+              <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+                <p>背景：{draft.context ?? "待补"}</p>
+                <p>任务：{draft.task ?? "待补"}</p>
+                <p>动作：{draft.actions.join("；") || "待补"}</p>
+                <p>结果：{draft.results.map((result) => result.metric ? `${result.text}（${result.metric}）` : result.text).join("；") || "待补"}</p>
+              </div>
+              {canPromoteDraft && current?.answer ? (
+                <form action={promoteCoachQaAnswerToEvidenceAction.bind(null, projectId, resumeId!, current.answer.id)} className="mt-3 space-y-3 rounded-xl border border-sky-100 bg-sky-50 p-3">
+                  <input type="hidden" name="starResultConfidence" value="confirmed" />
+                  <label className="block">
+                    <span className="text-xs font-medium text-sky-950">背景</span>
+                    <textarea name="starContext" defaultValue={draft.context ?? ""} maxLength={2000} className="mt-1 min-h-16 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-sky-950">任务</span>
+                    <textarea name="starTask" defaultValue={draft.task ?? ""} maxLength={2000} className="mt-1 min-h-16 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-sky-950">动作（至少 1 条）</span>
+                    <textarea name="starAction" required defaultValue={draft.actions[0] ?? ""} maxLength={2000} className="mt-1 min-h-16 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                  </label>
+                  <div className="grid gap-2 md:grid-cols-[1fr_0.45fr]">
+                    <label className="block">
+                      <span className="text-xs font-medium text-sky-950">结果（至少 1 条）</span>
+                      <textarea name="starResultText" required defaultValue={draft.results[0]?.text ?? ""} maxLength={2000} className="mt-1 min-h-16 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-sky-950">指标</span>
+                      <input name="starResultMetric" defaultValue={draft.results[0]?.metric ?? ""} maxLength={500} className="mt-1 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs font-medium text-sky-950">技能</span>
+                    <input name="starSkill" defaultValue={draft.skills[0] ?? ""} maxLength={200} className="mt-1 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-sky-950">来源文本</span>
+                    <textarea name="starSourceText" defaultValue={draft.sourceText} maxLength={4000} className="mt-1 min-h-16 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900" />
+                  </label>
+                  <button type="submit" className="rounded-full bg-slate-950 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800">
+                    人工确认后写入 evidence graph
+                  </button>
+                </form>
+              ) : (
+                <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">先把当前 Q&A 标记为事实笔记，才可用此草稿预填 STAR 入图。</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ExperienceQuestionWorkbench({
   projectId,
   resumeId,
   session,
   items,
+  hasDefaultModel,
+  preview,
 }: {
   projectId: string;
   resumeId?: string;
   session: CoachGrillSession;
   items: ExperienceDeepDiveItem[];
+  hasDefaultModel: boolean;
+  preview: ReturnType<typeof createPrivacyPreviewToken> | null;
 }) {
   const current = session.base.activeTurn;
   const activeItem = current ? items.find((item) => item.id === current.targetId && item.source === current.targetSource) : undefined;
@@ -1094,6 +1272,15 @@ function ExperienceQuestionWorkbench({
                   </div>
                 ) : null}
               </div>
+
+              <GrillEnhancementPanel
+                projectId={projectId}
+                resumeId={resumeId}
+                current={current}
+                enhancement={session.enhancement}
+                hasDefaultModel={hasDefaultModel}
+                preview={preview}
+              />
 
               <ol className="space-y-3">
                 {activeItem.questions.map((question) => {
@@ -1418,11 +1605,45 @@ export default async function CoachPage({ params, searchParams }: Props) {
     }
   }
   const qaQueue = buildExperienceQuestionQueue(document);
-  const qaSession = buildGrillSession({ queue: qaQueue, answers: qaAnswers, document });
+  const baseQaSession = buildGrillSession({ queue: qaQueue, answers: qaAnswers, document });
+  const grillEnhancementRecord = master
+    ? await readCoachGrillEnhancement({ projectId: project.id, resumeId: master.id, activeTurn: baseQaSession.base.activeTurn })
+    : null;
+  const qaSession = buildGrillSession({
+    queue: qaQueue,
+    answers: qaAnswers,
+    document,
+    enhancement: grillEnhancementRecord?.enhancement,
+  });
+  const modelConfigs = await listModelConfigs();
+  const defaultModel = modelConfigs.find((config) => config.isDefault && config.hasApiKey);
+  const hasDefaultModel = Boolean(defaultModel);
+  const grillEnhancePreview = master && defaultModel && baseQaSession.base.activeTurn
+    ? createPrivacyPreviewToken({
+        actionLabel: "AI clarify",
+        payload: {
+          model: defaultModel.model,
+          request: buildGrillEnhancementRequest({
+            activeTurn: baseQaSession.base.activeTurn,
+            answers: qaAnswers,
+            document,
+            weakestDimension: baseQaSession.weakestDimension,
+          }),
+        },
+        scope: {
+          kind: "ai-clarify",
+          provider: defaultModel.provider,
+          reason: "grill fuzzy clarify/conflict/probe/distil",
+          endpoint: `${defaultModel.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+        },
+      })
+    : null;
   const qaSubmitError = readableQaError(query?.qaCode);
   const qaEvidenceError = readableQaEvidenceError(query?.qaEvidenceCode);
+  const grillEnhanceError = readableGrillEnhanceError(query?.grillEnhanceCode);
   const qaOk = query?.qaStatus === "saved" ? "已保存本地 Q&A 笔记；不进入 confirmed bullet 或导出。" : null;
   const qaEvidenceOk = query?.qaEvidenceStatus === "ok" ? "已写入 evidence graph；仍未生成 confirmed bullet 或导出内容。" : null;
+  const grillEnhanceOk = query?.grillEnhanceStatus === "generated" ? "AI clarify 已生成并保存到本地 QA 目录；未写入简历事实。" : null;
   const evidenceBulletError = readableEvidenceBulletError(query?.evidenceBulletCode);
   const evidenceBulletOk =
     query?.evidenceBulletStatus === "draft"
@@ -1529,7 +1750,14 @@ export default async function CoachPage({ params, searchParams }: Props) {
         <CoachFlowRail steps={coachFlowSteps} />
         <CoachMetrics metrics={coachMetrics} />
         <BuilderSnapshotWorkbench projectId={project.id} snapshot={builderSnapshot} summary={builderSummary} />
-        <ExperienceQuestionWorkbench projectId={project.id} resumeId={master?.id} session={qaSession} items={qaQueue} />
+        <ExperienceQuestionWorkbench
+          projectId={project.id}
+          resumeId={master?.id}
+          session={qaSession}
+          items={qaQueue}
+          hasDefaultModel={hasDefaultModel}
+          preview={grillEnhancePreview}
+        />
 
         {resumeError ? (
           <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{resumeError}</p>
@@ -1559,12 +1787,20 @@ export default async function CoachPage({ params, searchParams }: Props) {
           <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{qaEvidenceError}</p>
         ) : null}
 
+        {grillEnhanceError ? (
+          <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{grillEnhanceError}</p>
+        ) : null}
+
         {qaOk ? (
           <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{qaOk}</p>
         ) : null}
 
         {qaEvidenceOk ? (
           <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{qaEvidenceOk}</p>
+        ) : null}
+
+        {grillEnhanceOk ? (
+          <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{grillEnhanceOk}</p>
         ) : null}
 
         {evidenceBulletError ? (

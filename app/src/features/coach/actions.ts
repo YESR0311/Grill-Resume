@@ -27,10 +27,12 @@ import {
   clearCoachFindingBulletLink,
   createCoachResearchReport,
   getCoachQaAnswerForEvidence,
+  listCoachQaAnswers,
   readCoachResearchReport,
   updateCoachFindingBulletLink,
   updateCoachFindingConfirmation,
   upsertCoachQaAnswer,
+  writeCoachGrillEnhancement,
 } from "@/features/coach/storage";
 import {
   appendExperienceBullet,
@@ -47,10 +49,15 @@ import { getActiveSearchProvider, SearchProviderError } from "@/features/search"
 import { analyzeJdCoverage, augmentJdCoverageWithSearch } from "@/features/coach/jd-coverage";
 import { evaluateSkillScarcity } from "@/features/coach/skill-scarcity";
 import { verifyCompaniesAndProjects } from "@/features/coach/company-verify";
+import { buildGrillSession } from "@/features/coach/conversation/engine";
+import { buildGrillEnhancement } from "@/features/coach/conversation/llm-enhance";
+import { buildExperienceQuestionQueue } from "@/features/coach/questions";
 import { nanoid } from "nanoid";
 import { generatePolishCandidates } from "@/features/polish/generate";
 import { createPolishRun, readPolishRun, writePolishRun } from "@/features/polish/store";
 import type { ResumeDocument, ResumeRecord } from "@/features/resume/types";
+
+const COACH_SEARCH_TIMEOUT_MS = 12_000;
 
 function firstResume(resumes: ResumeRecord[], kind: ResumeRecord["kind"]): ResumeRecord | undefined {
   return resumes.find((resume) => resume.kind === kind);
@@ -182,6 +189,12 @@ function buildProviderErrorRedirect(projectId: string, code: string, selectedIds
 
 function buildSearchErrorRedirect(projectId: string, code: string): string {
   return `/projects/${projectId}/coach?researchError=${code}`;
+}
+
+function buildGrillEnhancementRedirect(projectId: string, status: "generated" | "error", code?: string): string {
+  const params = new URLSearchParams({ grillEnhanceStatus: status });
+  if (code) params.set("grillEnhanceCode", code);
+  return `/projects/${projectId}/coach?${params.toString()}`;
 }
 
 const starInputSchema = z.object({
@@ -834,7 +847,17 @@ export async function runCoachSearchEvaluationAction(projectId: string, formData
     redirect(buildSearchErrorRedirect(project.id, code));
   }
 
-  const search = async (query: string) => provider.query({ query, maxResults: 3 });
+  const search = async (query: string) => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new SearchProviderError("request-failed", "search timeout")), COACH_SEARCH_TIMEOUT_MS);
+    });
+    try {
+      return await Promise.race([provider.query({ query, maxResults: 3 }), timedOut]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  };
   let findings: CoachResearchFinding[];
   try {
     const [scarcity, verification, jdCoverage] = await Promise.all([
@@ -884,7 +907,7 @@ export async function runCoachSearchEvaluationAction(projectId: string, formData
       })),
     ];
   } catch {
-    redirect(buildSearchErrorRedirect(project.id, "provider-failed"));
+    redirect(buildSearchErrorRedirect(project.id, "search-unavailable"));
   }
 
   if (findings.length === 0) redirect(buildSearchErrorRedirect(project.id, "invalid-provider-response"));
@@ -901,6 +924,49 @@ export async function runCoachSearchEvaluationAction(projectId: string, formData
     redirect(buildSearchErrorRedirect(project.id, "report-persist-failed"));
   }
   redirect(`/projects/${project.id}/coach?researchStatus=provider&report=${report.id}`);
+}
+
+export async function runGrillEnhancementAction(projectId: string, resumeId: string, formData: FormData) {
+  const project = getProject(projectId);
+  if (!project) redirect(buildGrillEnhancementRedirect(projectId, "error", "missing-project"));
+  if (!privacyConfirmed(formData)) redirect(buildGrillEnhancementRedirect(project.id, "error", "privacy-not-confirmed"));
+
+  const current = await getProjectResume(project.id, resumeId);
+  if (!current) redirect(buildGrillEnhancementRedirect(project.id, "error", "missing-resume"));
+
+  const answers = await listCoachQaAnswers(project.id, current.resume.id);
+  const queue = buildExperienceQuestionQueue(current.document);
+  const session = buildGrillSession({ queue, answers, document: current.document });
+  if (!session.base.activeTurn) redirect(buildGrillEnhancementRedirect(project.id, "error", "missing-active-turn"));
+
+  let defaultConfig;
+  try {
+    defaultConfig = await getDefaultModelConfig();
+  } catch {
+    redirect(buildGrillEnhancementRedirect(project.id, "error", "missing-model-config"));
+  }
+  if (!defaultConfig?.apiKey) redirect(buildGrillEnhancementRedirect(project.id, "error", "missing-model-config"));
+
+  const enhancement = await buildGrillEnhancement({
+    config: defaultConfig,
+    activeTurn: session.base.activeTurn,
+    answers,
+    document: current.document,
+    weakestDimension: session.weakestDimension,
+  });
+  if (!enhancement) redirect(buildGrillEnhancementRedirect(project.id, "error", "unavailable"));
+
+  try {
+    await writeCoachGrillEnhancement({
+      projectId: project.id,
+      resumeId: current.resume.id,
+      activeTurn: session.base.activeTurn,
+      enhancement,
+    });
+  } catch {
+    redirect(buildGrillEnhancementRedirect(project.id, "error", "persist-failed"));
+  }
+  redirect(buildGrillEnhancementRedirect(project.id, "generated"));
 }
 
 export async function runCoachResearchAction(projectId: string, formData: FormData) {

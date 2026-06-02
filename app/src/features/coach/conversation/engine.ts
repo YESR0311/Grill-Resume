@@ -4,6 +4,7 @@ import { buildAdaptiveQaSession, type CoachQaSession, type CoachQuestionKind, ty
 import { scoreGrillDimensions, type CoachGrillDimensionScores } from "./ambiguity";
 import { COACH_GRILL_DIMENSION_LABELS } from "./dimensions";
 import { buildRecommendedAnswers, type CoachRecommendedAnswer } from "./recommendations";
+import type { GrillEnhancement } from "./llm-enhance";
 
 export type CoachGrillSession = {
   base: CoachQaSession;
@@ -11,6 +12,7 @@ export type CoachGrillSession = {
   weakestDimension: CoachQuestionKind;
   weakestReason: string;
   recommendedAnswers: CoachRecommendedAnswer[];
+  enhancement?: GrillEnhancement;
 };
 
 function weakestDimension(scores: CoachGrillDimensionScores): CoachQuestionKind {
@@ -22,6 +24,7 @@ export function buildGrillSession(input: {
   queue: ExperienceDeepDiveItem[];
   answers: CoachQaAnswer[];
   document: ResumeDocument | null;
+  enhancement?: GrillEnhancement;
 }): CoachGrillSession {
   const base = buildAdaptiveQaSession(input.queue, input.answers, input.document);
   const dimensionScores = scoreGrillDimensions({ turns: base.turns, answers: input.answers });
@@ -38,5 +41,6 @@ export function buildGrillSession(input: {
       activeTurn: base.activeTurn,
       answers: input.answers,
     }),
+    enhancement: input.enhancement,
   };
 }

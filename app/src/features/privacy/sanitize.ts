@@ -4,6 +4,7 @@ export type OutboundScope =
   | { kind: "tavily-search"; provider: "tavily"; reason: string; endpoint?: string }
   | { kind: "ai-polish"; provider: string; reason: string; endpoint?: string }
   | { kind: "ai-extract"; provider: string; reason: string; endpoint?: string }
+  | { kind: "ai-clarify"; provider: string; reason: string; endpoint?: string }
   | { kind: "ai-research"; provider: string; reason: string; endpoint?: string }
   | { kind: "ai-bullet-draft"; provider: string; reason: string; endpoint?: string }
   | { kind: "docx-export"; provider: "local"; reason: string; endpoint?: string };

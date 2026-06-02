@@ -7,7 +7,8 @@ import { z } from "zod";
 import { getDb } from "@/lib/db";
 import { getProjectsRoot, getResumeQaAnswersPath, getResumeQaDir, getResumeReportDir, getResumeReportPath } from "@/lib/workspace";
 import { resumeDocumentSchema } from "@/features/resume/schema";
-import { buildExperienceQuestionQueue, type CoachQuestionKind } from "./questions";
+import { grillEnhancementSchema, type GrillEnhancement } from "./conversation/llm-enhance";
+import { buildExperienceQuestionQueue, type CoachQaTurn, type CoachQuestionKind } from "./questions";
 import { type CoachResearchFinding, type CoachResearchReport } from "./research";
 
 export type CoachResearchReportRecord = {
@@ -34,6 +35,19 @@ export type CoachQaAnswer = {
   status: CoachQaAnswerStatus;
   createdAt: string;
   updatedAt: string;
+};
+
+export type CoachGrillEnhancementRecord = {
+  schemaVersion: "coach-grill-enhancement-record-v1";
+  projectId: string;
+  resumeId: string;
+  targetId: string;
+  targetSource: CoachQaAnswer["targetSource"];
+  questionId: string;
+  questionKind: CoachQuestionKind;
+  questionPrompt: string;
+  enhancement: GrillEnhancement;
+  createdAt: string;
 };
 
 type CoachReportRow = {
@@ -150,6 +164,19 @@ const qaAnswersFileSchema = z.object({
   answers: z.array(qaAnswerSchema),
 });
 
+const grillEnhancementRecordSchema = z.object({
+  schemaVersion: z.literal("coach-grill-enhancement-record-v1"),
+  projectId: z.string().trim().min(1),
+  resumeId: z.string().trim().min(1),
+  targetId: z.string().trim().min(1),
+  targetSource: z.enum(["experience", "project"]),
+  questionId: z.string().trim().min(1),
+  questionKind: z.enum(["context", "action", "result", "metric", "evidence", "jd-fit"]),
+  questionPrompt: z.string().trim().min(1).max(1000),
+  enhancement: grillEnhancementSchema,
+  createdAt: z.string().trim().min(1),
+});
+
 export class CoachReportStorageError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -221,6 +248,16 @@ function resolveQaAnswersPath(resumeFilePath: string): string {
     throw new CoachReportStorageError("Q&A 路径不在当前简历 qa 目录内");
   }
   return ensureWorkspaceReportPath(qaPath);
+}
+
+function resolveGrillEnhancementPath(resumeFilePath: string): string {
+  const qaDir = path.resolve(getResumeQaDir(resumeFilePath));
+  const enhancementPath = path.resolve(qaDir, "grill-enhancement.json");
+  const relative = path.relative(qaDir, enhancementPath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new CoachReportStorageError("Grill enhancement 路径不在当前简历 qa 目录内");
+  }
+  return ensureWorkspaceReportPath(enhancementPath);
 }
 
 function readResumeOwner(projectId: string, resumeId: string): ResumeOwnerRow | null {
@@ -417,6 +454,74 @@ export async function upsertCoachQaAnswer(input: {
   await fs.writeFile(qaPath, JSON.stringify(parsed, null, 2), "utf-8");
   await readQaAnswersFile(input.projectId, input.resumeId, resume.file_path);
   return nextAnswer;
+}
+
+function enhancementMatchesTurn(record: CoachGrillEnhancementRecord, turn: CoachQaTurn | undefined): boolean {
+  if (!turn) return true;
+  return (
+    record.targetId === turn.targetId &&
+    record.targetSource === turn.targetSource &&
+    record.questionId === turn.questionId &&
+    record.questionKind === turn.questionKind &&
+    record.questionPrompt === turn.questionPrompt
+  );
+}
+
+export async function readCoachGrillEnhancement(input: {
+  projectId: string;
+  resumeId: string;
+  activeTurn?: CoachQaTurn;
+}): Promise<CoachGrillEnhancementRecord | null> {
+  const resume = readResumeOwner(input.projectId, input.resumeId);
+  if (!resume) return null;
+  const enhancementPath = resolveGrillEnhancementPath(resume.file_path);
+  let json: unknown;
+  try {
+    json = JSON.parse(await fs.readFile(enhancementPath, "utf-8"));
+  } catch {
+    return null;
+  }
+  const parsed = grillEnhancementRecordSchema.safeParse(json);
+  if (!parsed.success) return null;
+  if (parsed.data.projectId !== input.projectId || parsed.data.resumeId !== input.resumeId) return null;
+  return enhancementMatchesTurn(parsed.data, input.activeTurn) ? parsed.data : null;
+}
+
+export async function writeCoachGrillEnhancement(input: {
+  projectId: string;
+  resumeId: string;
+  activeTurn: CoachQaTurn;
+  enhancement: GrillEnhancement;
+}): Promise<CoachGrillEnhancementRecord> {
+  const resume = readResumeOwner(input.projectId, input.resumeId);
+  if (!resume) throw new CoachReportStorageError("简历不存在或不属于当前项目");
+  const document = await readResumeDocumentForQa(resume.file_path);
+  assertQuestionMatchesCurrentDocument({
+    document,
+    targetId: input.activeTurn.targetId,
+    targetSource: input.activeTurn.targetSource,
+    questionId: input.activeTurn.questionId,
+    questionKind: input.activeTurn.questionKind,
+    questionPrompt: input.activeTurn.questionPrompt,
+  });
+
+  const now = new Date().toISOString();
+  const record = grillEnhancementRecordSchema.parse({
+    schemaVersion: "coach-grill-enhancement-record-v1",
+    projectId: input.projectId,
+    resumeId: input.resumeId,
+    targetId: input.activeTurn.targetId,
+    targetSource: input.activeTurn.targetSource,
+    questionId: input.activeTurn.questionId,
+    questionKind: input.activeTurn.questionKind,
+    questionPrompt: input.activeTurn.questionPrompt,
+    enhancement: input.enhancement,
+    createdAt: now,
+  });
+  const enhancementPath = resolveGrillEnhancementPath(resume.file_path);
+  await fs.mkdir(path.dirname(enhancementPath), { recursive: true });
+  await fs.writeFile(enhancementPath, JSON.stringify(record, null, 2), "utf-8");
+  return record;
 }
 
 export async function createCoachResearchReport(input: {
