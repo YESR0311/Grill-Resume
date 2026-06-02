@@ -1,0 +1,13 @@
+packages:
+  - .
+  - desktop
+
+onlyBuiltDependencies:
+  - better-sqlite3
+  - "@swc/core"
+  - sharp
+  - unrs-resolver
+  - esbuild
+  - "@parcel/watcher"
+  - electron
+  - electron-winstaller

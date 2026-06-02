@@ -1,0 +1,205 @@
+/* Google Fonts - Must be at the very top before @tailwind directives */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Resume Alchemist Design System - Linear Style */
+
+@layer base {
+  :root {
+    /* Dark theme as default - Linear inspired */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+
+    /* AI Purple accent */
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 5% 17%;
+    --input: 240 5% 17%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.75rem;
+
+    /* Custom tokens */
+    --gradient-ai: linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 87%, 65%) 50%, hsl(262, 83%, 58%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(240, 10%, 8%) 0%, hsl(240, 10%, 4%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(240, 10%, 8%) 0%, hsl(240, 10%, 6%) 100%);
+    --glow-ai: 0 0 60px hsla(262, 83%, 58%, 0.3);
+    --glow-subtle: 0 0 40px hsla(262, 83%, 58%, 0.15);
+    
+    /* Glass effect */
+    --glass-bg: hsla(240, 10%, 8%, 0.8);
+    --glass-border: hsla(240, 5%, 25%, 0.5);
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 3.9%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 45%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 5% 90%;
+    --input: 240 5% 90%;
+    --ring: 262 83% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  ::selection {
+    @apply bg-primary/30 text-foreground;
+  }
+}
+
+@layer components {
+  /* Glass morphism card */
+  .glass-card {
+    @apply rounded-xl border backdrop-blur-xl;
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+  }
+
+  /* Gradient text */
+  .text-gradient-ai {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-ai);
+  }
+
+  /* AI glow button */
+  .btn-ai-glow {
+    @apply relative overflow-hidden transition-all duration-300;
+    background: var(--gradient-ai);
+    box-shadow: var(--glow-subtle);
+  }
+
+  .btn-ai-glow:hover {
+    box-shadow: var(--glow-ai);
+    transform: translateY(-2px);
+  }
+
+  /* Subtle card hover */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    @apply border-primary/30;
+    box-shadow: var(--glow-subtle);
+    transform: translateY(-2px);
+  }
+
+  /* Score ring animation */
+  .score-ring {
+    @apply relative;
+  }
+
+  .score-ring::before {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    background: var(--gradient-ai);
+    opacity: 0.2;
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.2; }
+    50% { transform: scale(1.05); opacity: 0.3; }
+  }
+
+  /* Typing cursor */
+  .typing-cursor::after {
+    content: '|';
+    @apply ml-1 animate-pulse text-primary;
+  }
+
+  /* Radar chart container */
+  .radar-container {
+    @apply relative;
+  }
+
+  .radar-container::before {
+    content: '';
+    @apply absolute inset-0 rounded-full opacity-20;
+    background: radial-gradient(circle, hsla(262, 83%, 58%, 0.3) 0%, transparent 70%);
+  }
+}
+
+@layer utilities {
+  /* Scrollbar styling */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Animation delays */
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+}

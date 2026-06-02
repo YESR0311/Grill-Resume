@@ -1,0 +1,450 @@
+{
+  "name": "简历",
+  "type": "rmx-child-project",
+  "parent": "/home/yesr/projects/aaa/rmx",
+  "path": "简历",
+  "purpose": "resume generation/optimization/management remix project",
+  "trellis": ".trellis",
+  "boundaries": {
+    "externalDefault": "read-only",
+    "ownedImplementation": [
+      "app/",
+      "build/"
+    ],
+    "doNotModifyFromHere": [
+      "/home/yesr/projects/aaa/CLAUDE.md",
+      "/home/yesr/projects/aaa/.claude/",
+      "/home/yesr/projects/aaa/.trellis/"
+    ]
+  },
+  "external": [
+    {
+      "name": "resume-alchemist",
+      "path": "简历/external/resume-alchemist",
+      "sourceUrl": "https://github.com/Anarkh-Lee/resume-alchemist",
+      "license": "MIT",
+      "tracking": "vendored",
+      "writable": false,
+      "role": "React resume builder/reference templates and export flows",
+      "use": [
+        "source-map",
+        "feature comparison",
+        "UX/pipeline ideas"
+      ],
+      "avoid": [
+        "direct code copy before license/source verification"
+      ],
+      "files": 147,
+      "sizeMB": 1.1,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "GitHub README has License section: MIT License; root LICENSE absent"
+    },
+    {
+      "name": "resumify",
+      "path": "简历/external/resumify",
+      "sourceUrl": "https://github.com/breaker505/resumify",
+      "license": "MIT",
+      "tracking": "vendored",
+      "writable": false,
+      "role": "resume guide/content reference",
+      "use": [
+        "source-map",
+        "feature comparison",
+        "UX/pipeline ideas"
+      ],
+      "avoid": [
+        "direct code copy before license/source verification"
+      ],
+      "files": 45,
+      "sizeMB": 3.7,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "Local LICENSE file: MIT"
+    },
+    {
+      "name": "shushu-internship-resume-optimizer",
+      "path": "简历/external/shushu-internship-resume-optimizer",
+      "sourceUrl": "https://github.com/Sunanzhe2004/shushu-internship-resume-optimizer",
+      "license": "Apache-2.0",
+      "tracking": "vendored",
+      "writable": false,
+      "role": "internship resume optimization/audit scripts",
+      "use": [
+        "source-map",
+        "feature comparison",
+        "UX/pipeline ideas"
+      ],
+      "avoid": [
+        "direct code copy before license/source verification"
+      ],
+      "files": 64,
+      "sizeMB": 0.2,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "Local LICENSE and pyproject.toml: Apache-2.0"
+    },
+    {
+      "name": "wzdnzd-resume",
+      "path": "简历/external/wzdnzd-resume",
+      "sourceUrl": "https://github.com/wzdnzd/resume",
+      "license": "MIT",
+      "tracking": "vendored",
+      "writable": false,
+      "role": "web resume builder UI/reference data model",
+      "use": [
+        "source-map",
+        "feature comparison",
+        "UX/pipeline ideas"
+      ],
+      "avoid": [
+        "direct code copy before license/source verification"
+      ],
+      "files": 149,
+      "sizeMB": 22.9,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "GitHub README license section says MIT; root LICENSE absent"
+    },
+    {
+      "name": "zineyu-resume",
+      "path": "简历/external/zineyu-resume",
+      "sourceUrl": "https://github.com/zineyu/resume",
+      "license": "UNKNOWN",
+      "tracking": "vendored",
+      "writable": false,
+      "role": "desktop Tauri resume builder/reference architecture",
+      "use": [
+        "source-map",
+        "feature comparison",
+        "UX/pipeline ideas"
+      ],
+      "avoid": [
+        "direct code copy before license/source verification"
+      ],
+      "files": 201,
+      "sizeMB": 21.0,
+      "licenseStatus": "needs-review",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "No root LICENSE; README does not state license in fetched content"
+    },
+    {
+      "name": "lucid-resume",
+      "path": "简历/external/lucid-resume",
+      "sourceUrl": "https://github.com/scottgal/lucidRESUME",
+      "license": "Unlicense",
+      "tracking": "vendored",
+      "lastUpstreamRef": "b4174da (2026-04-18)",
+      "writable": false,
+      "role": "evidence-first resume desktop app with skill ledger, provenance chain, 5-layer RRF extraction, ATS template detection, DOCX/PDF output, local Ollama option",
+      "use": [
+        "evidence graph patterns",
+        "skill taxonomy / provenance design",
+        "ATS template detection ideas",
+        "DOCX rendering patterns",
+        "local-first architecture comparison"
+      ],
+      "avoid": [
+        "direct code copy of the C# WPF/desktop layer",
+        "embedding the 19,983-skill LinkedIn taxonomy without re-checking license / source of that dataset"
+      ],
+      "files": 586,
+      "sizeMB": 16,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "Local LICENSE file: Unlicense (public domain); README also references Unlicense",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-05-24",
+            "findings": 2
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-05-25",
+            "findings": 0
+          }
+        ],
+        "falsePositives": 2,
+        "notes": "1) CLAUDE.md mentions a secrets-manager reference ID e7e3de57-...; not an actual credential. 2) generic-api-key/linkedin-client-id regex misfires on a `linkedInParser = linkedInParser` field assignment."
+      },
+      "lastReview": "2026-05-24"
+    },
+    {
+      "name": "resume-builder-skill",
+      "path": "简历/external/resume-builder-skill",
+      "sourceUrl": "https://github.com/Jichengyuuuuu/resume-builder-skill",
+      "license": "MIT",
+      "tracking": "vendored",
+      "lastUpstreamRef": "e7320bf (2026-04-15)",
+      "writable": false,
+      "role": "Chinese resume builder skill: 11+ role-type matrices, ATS-friendly Chinese typography, HTML+DOCX dual output, single skill file format for any agent/LLM",
+      "use": [
+        "Chinese resume DOCX layout reference",
+        "role-type-specific skill prompt patterns",
+        "single-shot skill prompt structure"
+      ],
+      "avoid": [
+        "copying the skill prompt verbatim; only borrow structural patterns"
+      ],
+      "files": 3,
+      "sizeMB": 13,
+      "licenseStatus": "needs-review",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "README states 'MIT License — 自由使用、修改和分发'; no root LICENSE file. Single-evidence; flag for follow-up with upstream to add LICENSE file.",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-05-24",
+            "findings": 0
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-05-25",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-05-24"
+    },
+    {
+      "name": "jade-ai",
+      "path": "简历/external/jade-ai",
+      "sourceUrl": "https://github.com/chtw3230/JadeAI",
+      "license": "Apache-2.0",
+      "tracking": "vendored",
+      "lastUpstreamRef": "1c60475 (2026-03-27)",
+      "writable": false,
+      "role": "Next.js resume builder with drag-and-drop editor, 50 templates, multi-format export (PDF/DOCX/HTML/TXT/JSON), bilingual UI, dual SQLite/Postgres",
+      "use": [
+        "Next.js App Router stack same as owned app — direct architectural cross-check",
+        "DOCX export route shape",
+        "multi-template registration mechanism (not the 50 designs)",
+        "Markdown-in-text-field UX"
+      ],
+      "avoid": [
+        "wholesale template copying",
+        "copying Puppeteer PDF rendering pipeline (owned uses docx package only)"
+      ],
+      "files": 425,
+      "sizeMB": 62,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "Local LICENSE file: Apache-2.0 (11K); README links to LICENSE in both EN and zh-CN README",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-05-24",
+            "findings": 0
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-05-25",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-05-24"
+    },
+    {
+      "name": "starry",
+      "path": "简历/external/starry",
+      "sourceUrl": "https://github.com/katilevina/starry",
+      "license": "MIT",
+      "tracking": "vendored",
+      "lastUpstreamRef": "4478e45 (2026-05-12)",
+      "writable": false,
+      "role": "STARR (Situation/Task/Action/Result/Reflection) achievement bank + Claude Code commands for interactive elicitation; Facts-only anti-fabrication policy; companies-from-achievements auto-derivation",
+      "use": [
+        "STARR (with Reflection) framework as STAR extension",
+        "interactive elicitation prompt patterns (Claude commands)",
+        "facts-only anti-fabrication policy as a spec constraint",
+        "companies-from-achievements auto-derivation idea"
+      ],
+      "avoid": [
+        "direct copying of the Claude command markdown",
+        "treating STARR as required vs optional Reflection field"
+      ],
+      "files": 43,
+      "sizeMB": 0.9,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "Local LICENSE file: MIT; README has License section",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-05-24",
+            "findings": 0
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-05-25",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-05-24"
+    },
+    {
+      "name": "deep-interview-omc",
+      "path": "简历/external/deep-interview-omc",
+      "sourceUrl": "https://github.com/Yeachan-Heo/oh-my-claudecode",
+      "license": "MIT",
+      "tracking": "vendored",
+      "vendoredScope": "sparse-checkout: skills/deep-interview/ only; rest of the oh-my-claudecode monorepo is excluded",
+      "lastUpstreamRef": "1fe17f0 (2026-05-20)",
+      "writable": false,
+      "role": "Ouroboros-inspired Socratic deep-interview skill: ONE-question-at-a-time, weak-dimension targeting, mathematical ambiguity scoring across weighted dimensions, AskUserQuestion bridge",
+      "use": [
+        "weak-dimension targeting algorithm",
+        "ambiguity scoring as a deterministic dimension model",
+        "one-question-at-a-time invariant",
+        "AskUserQuestion-style structured-question UI inspiration"
+      ],
+      "avoid": [
+        "pulling in any non-skill module from oh-my-claudecode (already excluded via sparse-checkout)",
+        "treating this as a runtime dependency; only inspiration"
+      ],
+      "files": 31,
+      "sizeMB": 1.8,
+      "licenseStatus": "ok",
+      "sourceEvidence": "README/.git metadata checked locally",
+      "licenseEvidence": "Local LICENSE file: MIT (Yeachan Heo, 2025); README has License section",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-05-24",
+            "findings": 0
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-05-25",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-05-24"
+    },
+    {
+      "name": "html-anything",
+      "path": "Grill-Resume/external/html-anything",
+      "sourceUrl": "https://github.com/nexu-io/html-anything",
+      "license": "Apache-2.0",
+      "tracking": "vendored",
+      "lastUpstreamRef": "b54a0fb (2026-06-02)",
+      "writable": false,
+      "role": "page-element design methodology reference for docx layout composition",
+      "use": [
+        "layout-element vocabulary",
+        "page composition ideas"
+      ],
+      "avoid": [
+        "copying HTML export pipeline",
+        "direct code copy outside explicitly attributed Apache-2.0 snippets"
+      ],
+      "files": 340,
+      "sizeMB": 18,
+      "licenseStatus": "ok",
+      "sourceEvidence": "GitHub tarball snapshot at b54a0fb; LICENSE, README, README.zh-CN, and package.json checked locally",
+      "licenseEvidence": "Local LICENSE file: Apache-2.0; README and package.json state Apache-2.0",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-06-02",
+            "findings": 0
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-06-02",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-06-02"
+    },
+    {
+      "name": "JobPilot",
+      "path": "Grill-Resume/external/JobPilot",
+      "sourceUrl": "https://github.com/jlifeng/JobPilot",
+      "license": "Apache-2.0",
+      "tracking": "vendored",
+      "lastUpstreamRef": "050bef0 (2026-06-02)",
+      "writable": false,
+      "role": "editor main skeleton: drag-drop editor, Markdown editor, textarea-list, layout/typography, and preview; superset of jade-ai based on JadeAI and RoleRover",
+      "use": [
+        "editor UI skeleton",
+        "preview component",
+        "layout/typography patterns",
+        "@dnd-kit drag-drop"
+      ],
+      "avoid": [
+        "Tauri desktop layer",
+        "next-auth",
+        "drizzle data layer",
+        "next-intl",
+        "puppeteer/mupdf import",
+        "interview module",
+        "wholesale template copy"
+      ],
+      "files": 715,
+      "sizeMB": 33,
+      "licenseStatus": "ok",
+      "sourceEvidence": "GitHub shallow clone at 050bef0; LICENSE, NOTICE, README, and package.json checked locally",
+      "licenseEvidence": "Local LICENSE file: Apache-2.0; NOTICE preserved; README states Apache-2.0",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-06-02",
+            "findings": 0
+          },
+          {
+            "tool": "semgrep p/secrets",
+            "date": "2026-06-02",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-06-02"
+    }
+  ],
+  "licenseGate": {
+    "ok": [
+      "resume-alchemist",
+      "resumify",
+      "shushu-internship-resume-optimizer",
+      "wzdnzd-resume",
+      "lucid-resume",
+      "jade-ai",
+      "starry",
+      "deep-interview-omc",
+      "html-anything",
+      "JobPilot"
+    ],
+    "needsReview": [
+      "zineyu-resume",
+      "resume-builder-skill"
+    ]
+  },
+  "abstractIdeasOnly": [
+    {
+      "name": "ResumePRO",
+      "sourceUrl": "https://github.com/TJ-Neary/ResumePRO",
+      "license": "All Rights Reserved (showcase repo, source closed)",
+      "reason": "License blocks vendoring; README documents concepts only. Per rmx-sop §5.2 only abstract ideas may be borrowed (architecture, naming patterns, confidence-tier vocabulary).",
+      "borrowedConcepts": [
+        "Phase A (positioning strategy) + Phase B (targeted bullet writing) split",
+        "Verified / Calculated / Estimated confidence tiers",
+        "6-dimension experience scoring (keyword, competency, recency, metric, semantic, assessment)",
+        "MoSCoW + Iceberg + semantic-cluster multi-framework JD analysis"
+      ],
+      "notes": "Concepts must be re-implemented from scratch in owned code with clearly different names where possible. No README text or screenshot copy."
+    }
+  ]
+}

@@ -1,0 +1,266 @@
+/* A4 打印专用样式 - Resume Rendering Engine 2.0 */
+
+/* 导入 Google Fonts - 确保打印时可用 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&display=swap');
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  /* 强制打印背景色和图片 */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* 隐藏所有非打印元素 */
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  /* 隐藏页面其他元素 */
+  body > *:not(.print-container) {
+    display: none !important;
+  }
+
+  /* 简历容器 */
+  .resume-a4 {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    padding: 20mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always;
+    background: white !important;
+  }
+
+  /* 防止内容被切断 - 关键优化 */
+  .resume-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 防止工作经历项被切断 */
+  .resume-section > div > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 链接样式 */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  /* 字体优化 - 确保 Google Fonts 加载 */
+  body {
+    font-size: 10pt;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Markdown 渲染样式 - 打印优化 */
+  .markdown-content strong,
+  .markdown-content b {
+    font-weight: 600 !important;
+    color: #111827 !important;
+  }
+
+  .markdown-content ul {
+    list-style-type: disc !important;
+    padding-left: 18px !important;
+    margin: 4px 0 !important;
+  }
+
+  .markdown-content li {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .markdown-content code {
+    background-color: #f3f4f6 !important;
+    padding: 1px 4px !important;
+    border-radius: 3px !important;
+    font-size: 11px !important;
+  }
+
+  .markdown-content p {
+    margin-bottom: 4px !important;
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+/* A4 容器基础样式 */
+.resume-a4 {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20mm;
+  box-sizing: border-box;
+  background: white;
+  /* 流式布局支持 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 模块分页控制 */
+.resume-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* 模板字体类 */
+.font-inter {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-merriweather {
+  font-family: 'Merriweather', 'Georgia', serif;
+}
+
+.font-jetbrains {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.font-roboto {
+  font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+}
+
+.font-lato {
+  font-family: 'Lato', 'Helvetica Neue', sans-serif;
+}
+
+.font-source-sans {
+  font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+}
+
+/* Markdown 内容样式 - 屏幕预览 */
+.markdown-content {
+  /* 继承父级样式 */
+}
+
+.markdown-content strong,
+.markdown-content b {
+  font-weight: 600;
+  color: #111827;
+}
+
+.markdown-content em,
+.markdown-content i {
+  font-style: italic;
+}
+
+.markdown-content ul {
+  list-style-type: disc;
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.markdown-content ol {
+  list-style-type: decimal;
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.markdown-content li {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+  color: #4b5563;
+}
+
+.markdown-content li::marker {
+  color: #9ca3af;
+}
+
+.markdown-content code {
+  background-color: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.markdown-content pre {
+  background-color: #f3f4f6;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content p {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.7;
+}
+
+.markdown-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid #d1d5db;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* 技能徽章样式 */
+.skill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background-color: #eef2ff;
+  color: #4338ca;
+  border-radius: 6px;
+  font-size: 11px;
+  border: 1px solid #e0e7ff;
+  font-weight: 500;
+}
+
+.skill-badge.geek {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* 主题特定样式 */
+.theme-minimal {
+  --section-title-size: 11px;
+  --section-title-weight: 700;
+  --section-title-color: #9ca3af;
+  --section-title-transform: uppercase;
+  --section-title-spacing: 0.1em;
+}
+
+.theme-elite {
+  --section-title-size: 16px;
+  --section-title-weight: 700;
+  --section-title-color: #111827;
+  --section-title-transform: none;
+  --section-title-spacing: normal;
+  --section-title-border: 1px solid #d1d5db;
+}
+
+.theme-geek {
+  --section-title-size: 13px;
+  --section-title-weight: 700;
+  --section-title-color: #1e293b;
+  --section-title-transform: none;
+  --section-title-spacing: normal;
+  --section-title-prefix: '## ';
+}

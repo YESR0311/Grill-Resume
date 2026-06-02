@@ -1,0 +1,147 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:lucidRESUME.ViewModels.Pages"
+             x:DataType="vm:ApplyPageViewModel"
+             x:Class="lucidRESUME.Views.Pages.ApplyPage">
+
+  <Grid ColumnDefinitions="*,*" Margin="16,12">
+
+    <!-- LEFT: job input form -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*" Margin="0,0,12,0">
+
+      <!-- Header -->
+      <TextBlock Grid.Row="0" Text="Tailor Resume" FontSize="18" FontWeight="Bold"
+                 Foreground="{DynamicResource LrPrimaryTextBrush}" Margin="0,0,0,16"/>
+
+      <!-- Ollama unavailable warning -->
+      <Border Grid.Row="1" Background="{DynamicResource LrAccentYellowBgBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
+              IsVisible="{Binding IsOllamaUnavailable}">
+        <TextBlock Text="Ollama is not reachable. Start Ollama before tailoring."
+                   Foreground="{DynamicResource LrAccentPeachBrush}" FontSize="12" TextWrapping="Wrap"/>
+      </Border>
+
+      <!-- Coverage summary -->
+      <Border Grid.Row="2" Background="{DynamicResource LrCardBgBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,0,10"
+              IsVisible="{Binding HasCoverage}">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <TextBlock Foreground="{DynamicResource LrAccentBlueBrush}" FontSize="12" VerticalAlignment="Center">
+            <Run Text="Coverage:"/>
+            <Run Text="{Binding CoveragePercent}" FontWeight="Bold"/>
+            <Run Text="%"/>
+          </TextBlock>
+          <TextBlock Foreground="{DynamicResource LrAccentRedBrush}" FontSize="12" VerticalAlignment="Center"
+                     IsVisible="{Binding GapCount}">
+            <Run Text="{Binding GapCount}"/>
+            <Run Text="required gap(s)"/>
+          </TextBlock>
+          <Border Background="{DynamicResource LrBadgeBgBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                  IsVisible="{Binding CompanyTypeLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding CompanyTypeLabel}" FontSize="10" Foreground="{DynamicResource LrAccentPurpleBrush}"/>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- Job Title -->
+      <StackPanel Grid.Row="3" Spacing="4" Margin="0,0,0,10">
+        <TextBlock Text="Job Title" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"/>
+        <TextBox Text="{Binding JobTitle}" Watermark="e.g. Senior Software Engineer"/>
+      </StackPanel>
+
+      <!-- Company -->
+      <StackPanel Grid.Row="4" Spacing="4" Margin="0,0,0,10">
+        <TextBlock Text="Company" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"/>
+        <TextBox Text="{Binding Company}" Watermark="e.g. Acme Corp"/>
+      </StackPanel>
+
+      <!-- Job Description -->
+      <StackPanel Grid.Row="5" Spacing="4" Margin="0,0,0,10">
+        <TextBlock Text="Job Description" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"/>
+        <TextBox Text="{Binding JobDescriptionText}"
+                 Watermark="Paste the full job description here…"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Height="200"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+      </StackPanel>
+
+      <!-- Tailor buttons -->
+      <Grid Grid.Row="6" ColumnDefinitions="*,8,*" Margin="0,4,0,8">
+        <Button Grid.Column="0"
+                Content="Smart Compress"
+                Command="{Binding SmartCompressCommand}"
+                IsEnabled="{Binding !IsTailoring}"
+                FontSize="14" FontWeight="Bold"
+                Padding="16,12"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                CornerRadius="6"
+                ToolTip.Tip="Compress resume to only relevant evidence, then polish with AI"/>
+        <Button Grid.Column="2"
+                Content="Full Tailor"
+                Command="{Binding TailorCommand}"
+                IsEnabled="{Binding !IsTailoring}"
+                FontSize="14" FontWeight="Bold"
+                Padding="16,12"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                CornerRadius="6"
+                ToolTip.Tip="Send full resume to AI for tailoring"/>
+      </Grid>
+
+      <!-- Progress bar -->
+      <ProgressBar Grid.Row="7" IsVisible="{Binding IsTailoring}"
+                   IsIndeterminate="True" Margin="0,0,0,8"/>
+
+      <!-- Status / Error -->
+      <StackPanel Grid.Row="8" Spacing="4">
+        <TextBlock Text="{Binding CompressionStats}" Foreground="{DynamicResource LrAccentPurpleBrush}" FontSize="11"
+                   IsVisible="{Binding CompressionStats, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"
+                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        <Border Background="{DynamicResource LrAccentRedBgBrush}" Padding="10,6" CornerRadius="4"
+                IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource LrAccentRedBrush}" TextWrapping="Wrap"/>
+        </Border>
+      </StackPanel>
+
+    </Grid>
+
+    <!-- RIGHT: tailored result -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" Margin="12,0,0,0">
+
+      <TextBlock Grid.Row="0" Text="Tailored Resume" FontSize="18" FontWeight="Bold"
+                 Foreground="{DynamicResource LrPrimaryTextBrush}" Margin="0,0,0,16"/>
+
+      <!-- Empty state -->
+      <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                  IsVisible="{Binding !HasResult}">
+        <TextBlock Text="Tailored resume will appear here." Foreground="{DynamicResource LrSecondaryTextBrush}"
+                   FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+        <TextBlock Text="Fill in the form and click Tailor Resume." Foreground="{DynamicResource LrSubtleTextBrush}"
+                   FontSize="13" HorizontalAlignment="Center"/>
+      </StackPanel>
+
+      <!-- Result -->
+      <Border Grid.Row="1" Background="{DynamicResource LrPageBgBrush}" CornerRadius="4"
+              IsVisible="{Binding HasResult}">
+        <ScrollViewer Padding="12">
+          <TextBlock Text="{Binding TailoredMarkdown}"
+                     TextWrapping="Wrap" Foreground="{DynamicResource LrPrimaryTextBrush}"
+                     FontFamily="Cascadia Code,Consolas,monospace"
+                     FontSize="12" LineHeight="18"/>
+        </ScrollViewer>
+      </Border>
+
+      <!-- Export button -->
+      <Button Grid.Row="2"
+              Content="Export as Markdown"
+              Command="{Binding ExportCommand}"
+              IsVisible="{Binding HasResult}"
+              Padding="16,8"
+              Margin="0,8,0,0"/>
+
+    </Grid>
+
+  </Grid>
+</UserControl>

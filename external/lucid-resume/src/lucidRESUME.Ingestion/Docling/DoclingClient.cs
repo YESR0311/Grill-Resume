@@ -1,0 +1,191 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using lucidRESUME.Core.Interfaces;
+using lucidRESUME.Ingestion.Docling.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace lucidRESUME.Ingestion.Docling;
+
+public sealed class DoclingClient : IDoclingClient
+{
+    private readonly HttpClient _http;
+    private readonly DoclingOptions _options;
+    private readonly ILogger<DoclingClient> _logger;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    public DoclingClient(HttpClient http, IOptions<DoclingOptions> options, ILogger<DoclingClient> logger)
+    {
+        _http = http;
+        _options = options.Value;
+        _logger = logger;
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync(new Uri(new Uri(_options.EffectiveBaseUrl), "/health"), ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<DoclingConversionResult> ConvertAsync(string filePath, CancellationToken ct = default)
+    {
+        var fileName = Path.GetFileName(filePath);
+        var contentType = GuessContentType(filePath);
+
+        _logger.LogInformation("Submitting {FileName} to Docling at {BaseUrl} (cloud={UseCloud})",
+            fileName, _options.EffectiveBaseUrl, _options.UseCloud);
+
+        await using var stream = File.OpenRead(filePath);
+        var taskId = await SubmitAsync(stream, fileName, contentType, ct);
+
+        _logger.LogInformation("Docling task {TaskId} submitted for {FileName}", taskId, fileName);
+
+        await PollUntilCompleteAsync(taskId, ct);
+
+        return await GetResultAsync(taskId, ct);
+    }
+
+    private async Task<string> SubmitAsync(Stream fileStream, string fileName, string contentType, CancellationToken ct)
+    {
+        using var content = new MultipartFormDataContent();
+
+        var streamContent = new StreamContent(fileStream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "files", fileName);
+        content.Add(new StringContent("md"), "to_formats");
+        content.Add(new StringContent("json"), "to_formats");
+        content.Add(new StringContent("true"), "do_ocr");
+        content.Add(new StringContent("true"), "do_table_structure");
+        content.Add(new StringContent("embedded"), "image_export_mode");
+        content.Add(new StringContent("1.5"), "images_scale");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            new Uri(new Uri(_options.EffectiveBaseUrl), "/v1/convert/file/async")) { Content = content };
+        if (_options.UseCloud && _options.CloudApiKey is not null)
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.CloudApiKey);
+
+        var response = await _http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+
+        var submission = await response.Content.ReadFromJsonAsync<DoclingTaskSubmission>(JsonOptions, ct);
+        if (submission?.TaskId is null)
+            throw new DoclingConversionException("Docling returned null task ID");
+
+        return submission.TaskId;
+    }
+
+    private async Task PollUntilCompleteAsync(string taskId, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(_options.TimeoutSeconds);
+        var baseUri = new Uri(_options.EffectiveBaseUrl);
+
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            using var pollRequest = new HttpRequestMessage(HttpMethod.Get,
+                new Uri(baseUri, $"/v1/status/poll/{taskId}?wait=5"));
+            if (_options.UseCloud && _options.CloudApiKey is not null)
+                pollRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.CloudApiKey);
+
+            var response = await _http.SendAsync(pollRequest, ct);
+            response.EnsureSuccessStatusCode();
+
+            var status = await response.Content.ReadFromJsonAsync<DoclingTaskStatus>(JsonOptions, ct);
+            if (status is null)
+                throw new DoclingConversionException($"Docling returned null status for task {taskId}");
+
+            _logger.LogDebug("Docling task {TaskId}: {Status} (position: {Position})",
+                taskId, status.TaskStatus, status.TaskPosition);
+
+            if (status.TaskStatus is "success")
+                return;
+
+            if (status.TaskStatus is "failure")
+                throw new DoclingConversionException($"Docling conversion failed for task {taskId}");
+
+            await Task.Delay(_options.PollingIntervalMs, ct);
+        }
+
+        throw new TimeoutException($"Docling conversion timed out after {_options.TimeoutSeconds}s for task {taskId}");
+    }
+
+    private async Task<DoclingConversionResult> GetResultAsync(string taskId, CancellationToken ct)
+    {
+        var baseUri = new Uri(_options.EffectiveBaseUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(baseUri, $"/v1/result/{taskId}"));
+        if (_options.UseCloud && _options.CloudApiKey is not null)
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.CloudApiKey);
+
+        var response = await _http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<DoclingApiResult>(JsonOptions, ct);
+        if (result is null)
+            throw new DoclingConversionException($"Docling returned null result for task {taskId}");
+
+        var markdown = result.Document.MdContent ?? "";
+        var json = result.Document.JsonContent is not null
+            ? JsonSerializer.Serialize(result.Document.JsonContent)
+            : null;
+        var plainText = result.Document.TextContent;
+        var pageImages = ExtractPageImages(result.Document.JsonContent);
+
+        return new DoclingConversionResult(markdown, json, plainText, pageImages);
+    }
+
+    /// <summary>
+    /// Extracts page PNG images from the Docling JSON document.
+    /// Docling embeds pages as: document.pages.{pageNum}.image.uri = "data:image/png;base64,..."
+    /// </summary>
+    private static IReadOnlyList<byte[]> ExtractPageImages(System.Text.Json.JsonElement? jsonContent)
+    {
+        if (jsonContent is null) return [];
+        if (!jsonContent.Value.TryGetProperty("pages", out var pages)) return [];
+
+        var images = new List<(int page, byte[] data)>();
+        foreach (var page in pages.EnumerateObject())
+        {
+            if (!int.TryParse(page.Name, out var pageNum)) continue;
+            if (!page.Value.TryGetProperty("image", out var img)) continue;
+            if (!img.TryGetProperty("uri", out var uriEl)) continue;
+            var uri = uriEl.GetString();
+            const string prefix = "data:image/png;base64,";
+            if (uri?.StartsWith(prefix, StringComparison.Ordinal) != true) continue;
+            try
+            {
+                images.Add((pageNum, Convert.FromBase64String(uri[prefix.Length..])));
+            }
+            catch (FormatException) { /* skip malformed */ }
+        }
+
+        return images.OrderBy(x => x.page).Select(x => x.data).ToList();
+    }
+
+    private static string GuessContentType(string filePath) =>
+        Path.GetExtension(filePath).ToLowerInvariant() switch
+        {
+            ".pdf" => "application/pdf",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".doc" => "application/msword",
+            ".txt" => "text/plain",
+            _ => "application/octet-stream"
+        };
+}
+
+public sealed class DoclingConversionException : Exception
+{
+    public DoclingConversionException(string message) : base(message) { }
+    public DoclingConversionException(string message, Exception inner) : base(message, inner) { }
+}

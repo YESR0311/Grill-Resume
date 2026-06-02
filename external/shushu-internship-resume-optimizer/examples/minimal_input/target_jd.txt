@@ -1,0 +1,12 @@
+AI Application / Agent Evaluation Intern
+
+Responsibilities:
+- support agent evaluation workflows, data review logic, or application-side quality analysis
+- help organize model or agent outputs into reusable evaluation and reporting processes
+- summarize technical trade-offs and workflow design clearly
+
+Preferred signals:
+- Python scripting
+- evaluation or review-workflow experience
+- familiarity with multi-step agent or application outputs
+- ability to explain business context, failure modes, and rule design clearly

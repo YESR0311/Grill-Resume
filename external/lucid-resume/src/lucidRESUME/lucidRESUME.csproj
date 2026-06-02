@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType Condition="'$(BuildingForMobile)' != 'true'">WinExe</OutputType>
+    <OutputType Condition="'$(BuildingForMobile)' == 'true'">Library</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <UserSecretsId>e7e3de57-7a67-4384-ba07-90139e44ae83</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.4" Condition="'$(BuildingForMobile)' != 'true'" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.4" />
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.4">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="FluentIcons.Avalonia.Fluent" Version="2.0.321" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" Version="2.0.0" />
+    <PackageReference Include="Markdig" Version="1.1.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageReference Include="ScottPlot.Avalonia" Version="5.1.58" />
+    <PackageReference Include="YamlDotNet" Version="17.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- ONNX models: copy from repo root models/ to output if present -->
+    <None Include="..\..\models\**\*" Link="models\%(RecursiveDir)%(FileName)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\user-manual.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\lucidRESUME.Core\lucidRESUME.Core.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Ingestion\lucidRESUME.Ingestion.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Extraction\lucidRESUME.Extraction.csproj" />
+    <ProjectReference Include="..\lucidRESUME.JobSpec\lucidRESUME.JobSpec.csproj" />
+    <ProjectReference Include="..\lucidRESUME.JobSearch\lucidRESUME.JobSearch.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Matching\lucidRESUME.Matching.csproj" />
+    <ProjectReference Include="..\lucidRESUME.AI\lucidRESUME.AI.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Export\lucidRESUME.Export.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Collabora\lucidRESUME.Collabora.csproj" />
+    <ProjectReference Include="..\lucidRESUME.UXTesting\lucidRESUME.UXTesting.csproj" />
+    <ProjectReference Include="..\Mostlylucid.Avalonia.UITesting\Mostlylucid.Avalonia.UITesting.csproj" />
+    <ProjectReference Include="..\lucidRESUME.EmailTracker\lucidRESUME.EmailTracker.csproj" />
+    <ProjectReference Include="..\lucidRESUME.GitHub\lucidRESUME.GitHub.csproj" />
+  </ItemGroup>
+</Project>

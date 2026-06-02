@@ -1,0 +1,37 @@
+# deps / build
+node_modules/
+app/.next/
+app/tsconfig.tsbuildinfo
+
+# local workspace + backend experiment state (PII)
+app/.workspace/
+app/.backend-*.json
+
+# real-person resume artifacts (PII) - never commit
+/1.docx
+/1.docx:Zone.Identifier
+demo/*.docx
+demo/*.docx:Zone.Identifier
+build/*.docx
+build/*.docx:Zone.Identifier
+build/config.gypi
+
+# demo data containing real-person contact fields
+demo/
+demo/resume-data.json
+
+# external reference repos may include real-person sample resumes/templates
+external/**/*.docx
+external/**/*.docx:Zone.Identifier
+external/**/.env
+external/**/.env.*
+external/**/.env_*
+!external/**/.env.example
+!external/**/.env.sample
+
+# tooling
+.claude/
+.trellis/
+.mcp.json
+.playwright-mcp/
+*.log

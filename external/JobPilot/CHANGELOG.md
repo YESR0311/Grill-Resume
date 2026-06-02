@@ -1,0 +1,168 @@
+# 更新日志
+
+所有重要的项目变更都会记录在这个文件中。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+并且本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [1.2.1] - 2026-06-01
+
+### 新增
+
+- 统一模板渲染 Markdown 基础语法保障：为 29 个 unified 模板新增自动化回归覆盖，统一校验预览与导出对 `**加粗**`、`` `行内代码` `` 和无序列表的渲染一致性
+
+### 文档
+
+- 模板质量矩阵规划更新：补齐 unified 模板抽检进度、legacy 模板处置门槛与招聘平台导入抽检台账，便于后续持续推进
+
+## [1.1.9] - 2026-05-28
+
+### 修复
+
+- macOS 更新重启 — 更新安装完成后通过 Tauri process 插件重新启动应用，并保留原生命令兜底
+- 桌面 PDF 导出 — 修复 Apple Silicon 上 Chrome/Edge headless 已生成 PDF 但进程不退出导致导出中卡住的问题
+- 现代极简模板导出 — 修复 Modern Minimal 模板预览与导出的样式一致性、图标、列表和分页表现
+- 技能列表导出 — 统一 Consultant、Classic、Professional 模板技能列表按独立条目渲染
+
+## [1.1.8] - 2026-05-27
+
+### 新增
+
+- 技能分类拖拽排序 — 简历编辑器支持拖拽调整技能分类顺序，Web 与桌面端保持一致
+- Professional 模板统一渲染 — 迁移到统一模板渲染系统，技能列表渲染为独立条目
+
+### 变更
+
+- 移除 DOCX 导出功能
+- 项目文档整合到 AGENTS.md
+
+## [1.1.7] - 2026-05-26
+
+### 新增
+
+- 项目经历排序 — 简历编辑器支持在“项目经历”模块内拖拽调整多个项目的先后顺序，Web 与桌面端保持一致
+
+### 修复
+
+- 桌面 PDF 导出 — 修复 Windows/Chrome 下临时 HTML 过早清理可能导致导出的 PDF 变成 `ERR_FILE_NOT_FOUND` 错误页的问题
+
+## [1.1.6] - 2026-05-22
+
+### 新增
+
+- AI 深度思考 — 支持 Extended Thinking / Reasoning 功能，兼容 Anthropic 原生 API 和 OpenAI 兼容格式（DeepSeek 等），聊天面板顶部 Brain 图标切换开关
+- AI 设置手动保存 — 设置面板新增保存/取消按钮，固定在底部，保存后同步更新聊天面板模型列表
+
+## [1.1.5] - 2025-05-21
+
+### 新增
+
+- 工作经历标签 — 为所有模板的工作经历模块添加标签区分，描述前显示"职责/Responsibilities:"，成就列表前显示"主要成就/Key Achievements:"
+
+### 修复
+
+- 字体主题 — 修复个人简介模块字体不跟随主题设置的问题
+- macOS 更新重启 — 修复 macOS 版本更新安装后不自动重启的问题
+- 学术模板 — 移除个人简介模块的首行缩进
+
+## [1.1.4] - 2025-05-20
+
+### 新增
+
+- 关于对话框 — 导航栏新增"关于"按钮，显示应用版本号，支持手动检查更新
+
+### 修复
+
+- macOS 更新检测 — 修复 CI 发布流程中 PowerShell 路径解析 bug，导致 macOS 平台更新清单丢失
+- MSI 打包版本号 — 使用纯数字版本格式，兼容 Windows MSI 安装包
+
+## [1.1.3] - 2025-05-19
+
+### 新增
+
+- Modern Minimal 模板 — 现代极简风格简历模板，蓝色主题，时间线工作经历，卡片式项目展示
+
+### 变更
+
+- ContactInfo 组件 SVG 图标 — 将 emoji 图标替换为 Lucide SVG 图标，支持 CSS 颜色继承
+- 模板 ContactInfo 统一 — 迁移 30+ 模板使用共享 ContactInfo 组件，统一个人信息展示
+- 现代极简模板优化 — 重构时间线布局使用绝对定位，技能改为列表展示，项目卡片单列布局并支持亮点渲染
+
+### 修复
+
+- macOS Keychain 访问 — 未签名应用访问 Keychain 失败时 fallback 到文件存储，确保 API Key 能正常保存
+
+## [1.1.2] - 2025-05-17
+
+### 新增
+
+- macOS 构建支持 — 支持 Apple Silicon (aarch64) 构建
+
+### 变更
+
+- 项目重命名 — 从 RoleRover 重命名为 JobPilot，更新应用名称、图标、包名
+
+### 修复
+
+- Keyring 密钥管理 — 修复 macOS/Windows Keyring 读写逻辑，简化验证流程
+- 桌面端密钥保留 — Keyring 读取失败时保留本地密钥，不意外清空
+- Tauri 包版本同步 — 修复 NPM 包与 Rust crate 版本不匹配问题
+- macOS 更新器 — 支持 .app.tar.gz 格式的更新包
+- CI 构建流程 — 修复资源重复上传、隐藏文件处理、artifact 路径解析等问题
+
+## [1.1.1] - 2025-05-15
+
+### 新增
+
+- Tauri 桌面端 — 基于 Tauri 2 构建原生桌面应用
+- 多格式导入 — 支持 JSON、Markdown、PDF、图片多种格式导入
+- PDF 导入增强 — 支持普通 PDF 和扫描件，使用多模态模型智能解析
+- Markdown 编辑器 — 支持工具栏快捷操作（加粗、斜体、代码、列表、链接）
+- 文本域列表组件 — 支持多行文本输入，适合编辑经历描述
+- 应用内更新 — 自动检测并安装新版本
+- 模型列表获取 — 支持手动刷新获取可用模型列表
+
+### 变更
+
+- 亮点字段优化 — 改用文本域组件，便于输入长文本亮点描述
+- 窗口启动优化 — 应用启动时以最小尺寸居中显示
+- 设置保存优化 — AI 配置即使测试失败也会保存用户填入的信息
+- API Key 管理 — 支持显示/隐藏切换，默认以密文展示
+- 模型获取优化 — 测试连接前自动保存配置
+
+### 修复
+
+- Exa 配置保存 — 修复 Exa Base URL 无法保存的问题
+- Tauri 权限配置 — 补全 interview 面试功能和 read_secret_value 命令的权限
+- 面试功能修复 — 修复面试创建失败的问题（Tauri 命令权限缺失）
+- 导入功能重构 — 统一文件导入组件，支持 JSON 直接解析和 Markdown AI 解析
+- 导入进度显示 — 显示详细的五阶段进度（验证、提取、渲染、解析、保存）
+- PDF 导出错误 — 改进 PDF 导出错误显示和浏览器发现逻辑
+- Headless Chrome — 增强 Windows 10 精简版系统的 Chrome 兼容性
+
+## [1.0.0] - 2025-05-01
+
+### 新增
+
+- 初始发布 — 基于 JadeAI/RoleRover 二次开发
+- 拖拽式简历编辑器 — 支持行内编辑、自动保存、模块拖拽排序
+- 50+ 简历模板 — 涵盖经典、现代、极简、ATS 友好等多种风格
+- AI 智能助手 — 简历生成、内容优化、JD 匹配分析、求职信撰写
+- 简历解析 — 支持从 PDF 和图片中解析简历内容
+- 多格式导出 — 支持 PDF、PNG、Word 等格式导出
+- 简历分享 — 生成分享链接，方便投递和展示
+- LinkedIn 职业照 — AI 生成专业证件照
+- 中英双语 — 完整的国际化支持
+- 本地优先 — 数据存储在本地，隐私安全有保障
+
+[Unreleased]: https://github.com/jlifeng/JobPilot/compare/v1.1.9...HEAD
+[1.1.9]: https://github.com/jlifeng/JobPilot/compare/v1.1.8...v1.1.9
+[1.1.8]: https://github.com/jlifeng/JobPilot/compare/v1.1.7...v1.1.8
+[1.1.7]: https://github.com/jlifeng/JobPilot/compare/v1.1.6...v1.1.7
+[1.1.6]: https://github.com/jlifeng/JobPilot/compare/v1.1.5...v1.1.6
+[1.1.5]: https://github.com/jlifeng/JobPilot/compare/v1.1.4...v1.1.5
+[1.1.4]: https://github.com/jlifeng/JobPilot/compare/v1.1.3...v1.1.4
+[1.1.3]: https://github.com/jlifeng/JobPilot/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/jlifeng/JobPilot/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/jlifeng/JobPilot/compare/v1.0.0...v1.1.1
+[1.0.0]: https://github.com/jlifeng/JobPilot/releases/tag/v1.0.0

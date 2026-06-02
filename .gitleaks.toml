@@ -1,0 +1,14 @@
+title = "Grill-Resume gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignored generated outputs and documented upstream false positives."
+paths = [
+  '''^app/\.next/''',
+  '''^build/''',
+  '''^external/lucid-resume/CLAUDE\.md$''',
+  '''^external/lucid-resume/src/lucidRESUME/ViewModels/Pages/ResumePageViewModel\.cs$''',
+  '''^manifest\.json$'''
+]

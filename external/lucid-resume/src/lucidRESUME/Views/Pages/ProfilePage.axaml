@@ -1,0 +1,269 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:lucidRESUME.ViewModels.Pages"
+             xmlns:controls="using:lucidRESUME.Views.Controls"
+             x:DataType="vm:ProfilePageViewModel"
+             x:Class="lucidRESUME.Views.Pages.ProfilePage">
+
+  <ScrollViewer Background="{DynamicResource LrPageBgBrush}">
+    <StackPanel Margin="24,16" Spacing="20" MaxWidth="720">
+
+      <!-- Page heading + theme toggle -->
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="Profile" FontSize="22" FontWeight="Bold"
+                   Foreground="{DynamicResource LrPrimaryTextBrush}" Margin="0,0,0,8"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="Theme:" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="11" VerticalAlignment="Center"/>
+          <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}"
+                    MinWidth="90" FontSize="11"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- Card 1: Identity -->
+      <Border Background="{DynamicResource LrSurfaceBgBrush}" BorderBrush="{DynamicResource LrBorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="0">
+        <Grid ColumnDefinitions="3,*">
+          <Border Grid.Column="0" Background="{DynamicResource LrAccentBlueBrush}" CornerRadius="3,0,0,3" MinHeight="1"/>
+          <StackPanel Grid.Column="1" Margin="20,16" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Identity" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource LrPrimaryTextBrush}"/>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,16,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="Your Name" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBlock Grid.Row="0" Grid.Column="2"
+                         Text="Current Title" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBox Grid.Row="1" Grid.Column="0"
+                       Text="{Binding FullName}"
+                       Watermark="e.g. Jane Smith"
+                       CornerRadius="6" Padding="10,8"/>
+              <TextBox Grid.Row="1" Grid.Column="2"
+                       Text="{Binding CurrentTitle}"
+                       Watermark="e.g. Senior Developer"
+                       CornerRadius="6" Padding="10,8"/>
+              <TextBlock Grid.Row="2" Grid.ColumnSpan="3"
+                         Text="Years of Experience"
+                         Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,8,0,4"/>
+              <TextBox Grid.Row="3" Grid.Column="0"
+                       Text="{Binding YearsOfExperience}"
+                       Watermark="e.g. 8"
+                       CornerRadius="6" Padding="10,8"/>
+            </Grid>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Card 2: Work Preferences -->
+      <Border Background="{DynamicResource LrSurfaceBgBrush}" BorderBrush="{DynamicResource LrBorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="0">
+        <Grid ColumnDefinitions="3,*">
+          <Border Grid.Column="0" Background="{DynamicResource LrAccentPurpleBrush}" CornerRadius="3,0,0,3" MinHeight="1"/>
+          <StackPanel Grid.Column="1" Margin="20,16" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Work Preferences" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource LrPrimaryTextBrush}"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Work Style" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <controls:WorkStyleToggleGroup
+                  OpenToRemote="{Binding OpenToRemote, Mode=TwoWay}"
+                  OpenToHybrid="{Binding OpenToHybrid, Mode=TwoWay}"
+                  OpenToOnsite="{Binding OpenToOnsite, Mode=TwoWay}"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Preferred Locations" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding PreferredLocations}"
+                                      Placeholder="Add location…"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Target Roles" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding TargetRoles}"
+                                      Placeholder="Add role…"/>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,16,80" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="Min Salary" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBlock Grid.Row="0" Grid.Column="2"
+                         Text="Currency" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBox Grid.Row="1" Grid.Column="0"
+                       Text="{Binding MinSalary}"
+                       Watermark="e.g. 80000"
+                       CornerRadius="6" Padding="10,8"/>
+              <TextBox Grid.Row="1" Grid.Column="2"
+                       Text="{Binding PreferredCurrency}"
+                       Watermark="GBP"
+                       CornerRadius="6" Padding="10,8"/>
+            </Grid>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Max Commute (minutes)" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBox Text="{Binding MaxCommuteMinutes}"
+                       Watermark="e.g. 45"
+                       CornerRadius="6" Padding="10,8"
+                       HorizontalAlignment="Left" Width="160"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Target Industries" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding TargetIndustries}"
+                                      Placeholder="Add industry…"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Blocked Industries" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding BlockedIndustries}"
+                                      Placeholder="Add industry…"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Card 3: Skills -->
+      <Border Background="{DynamicResource LrSurfaceBgBrush}" BorderBrush="{DynamicResource LrBorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="0">
+        <Grid ColumnDefinitions="3,*">
+          <Border Grid.Column="0" Background="{DynamicResource LrAccentGreenBrush}" CornerRadius="3,0,0,3" MinHeight="1"/>
+          <StackPanel Grid.Column="1" Margin="20,16" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Skills" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource LrPrimaryTextBrush}"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="SKILLS TO EMPHASISE"
+                         Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="11" FontWeight="SemiBold"
+                         Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding SkillsToEmphasise}"
+                                      Placeholder="Add skill…"
+                                      AllowReasons="True"/>
+            </StackPanel>
+            <Border Height="1" Background="{DynamicResource LrBorderBrush}" Margin="0,4,0,4"/>
+            <StackPanel Spacing="4">
+              <TextBlock Text="SKILLS TO AVOID"
+                         Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="11" FontWeight="SemiBold"
+                         Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding SkillsToAvoid}"
+                                      Placeholder="Add skill…"
+                                      AllowReasons="True"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Card 4: AI Context -->
+      <Border Background="{DynamicResource LrSurfaceBgBrush}" BorderBrush="{DynamicResource LrBorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="0">
+        <Grid ColumnDefinitions="3,*">
+          <Border Grid.Column="0" Background="{DynamicResource LrAccentYellowBrush}" CornerRadius="3,0,0,3" MinHeight="1"/>
+          <StackPanel Grid.Column="1" Margin="20,16" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="AI Context" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource LrPrimaryTextBrush}"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Career Goals" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBox Text="{Binding CareerGoals}"
+                       Watermark="Describe what you're looking for…"
+                       AcceptsReturn="True" TextWrapping="Wrap" Height="80"
+                       CornerRadius="6" Padding="10,8"
+                       ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Additional Context" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBox Text="{Binding AdditionalContext}"
+                       Watermark="Anything else for the AI to know…"
+                       AcceptsReturn="True" TextWrapping="Wrap" Height="64"
+                       CornerRadius="6" Padding="10,8"
+                       ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Blocked Companies" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <controls:TagChipEditor Items="{Binding BlockedCompanies}"
+                                      Placeholder="Add company…"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Card 5: GitHub Import -->
+      <Border Background="{DynamicResource LrSurfaceBgBrush}" BorderBrush="{DynamicResource LrBorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="0">
+        <Grid ColumnDefinitions="3,*">
+          <Border Grid.Column="0" Background="{DynamicResource LrAccentPurpleBrush}" CornerRadius="3,0,0,3" MinHeight="1"/>
+          <StackPanel Grid.Column="1" Margin="20,16" Spacing="12">
+            <TextBlock Text="GitHub Import" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource LrPrimaryTextBrush}"/>
+            <TextBlock Text="Import skills and projects from your GitHub repos."
+                       Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,8,Auto" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="GitHub Username" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBox Grid.Row="1" Grid.Column="0"
+                       Text="{Binding GitHubUsername}"
+                       Watermark="e.g. scottgal"
+                       CornerRadius="6" Padding="10,8"/>
+              <Button Grid.Row="1" Grid.Column="2"
+                      Content="Import" Command="{Binding ImportGitHubCommand}"
+                      Padding="16,8" VerticalAlignment="Bottom"/>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ProgressBar IsVisible="{Binding IsImportingGitHub}" IsIndeterminate="True" Width="60" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding GitHubImportStatus}" Foreground="{DynamicResource LrAccentBlueBrush}" FontSize="11"
+                         VerticalAlignment="Center" TextWrapping="Wrap"
+                         IsVisible="{Binding GitHubImportStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Card 6: AI Provider -->
+      <Border Background="{DynamicResource LrSurfaceBgBrush}" BorderBrush="{DynamicResource LrBorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="0">
+        <Grid ColumnDefinitions="3,*">
+          <Border Grid.Column="0" Background="{DynamicResource LrAccentBlueBrush}" CornerRadius="3,0,0,3" MinHeight="1"/>
+          <StackPanel Grid.Column="1" Margin="20,16" Spacing="12">
+            <TextBlock Text="AI Provider" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource LrPrimaryTextBrush}"/>
+
+            <!-- Provider selector -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Provider" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"/>
+              <ComboBox SelectedItem="{Binding AiProvider}" MinWidth="200"
+                        ItemsSource="{Binding AiProviders}"/>
+            </StackPanel>
+
+            <!-- Anthropic API Key -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Anthropic API Key" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"/>
+              <TextBox Text="{Binding AnthropicApiKey}" Watermark="sk-ant-..." PasswordChar="*"
+                       CornerRadius="6" Padding="10,8"/>
+            </StackPanel>
+
+            <!-- OpenAI API Key -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="OpenAI API Key" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12"/>
+              <TextBox Text="{Binding OpenAiApiKey}" Watermark="sk-..." PasswordChar="*"
+                       CornerRadius="6" Padding="10,8"/>
+            </StackPanel>
+
+            <!-- Model selector -->
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Model" Foreground="{DynamicResource LrSecondaryTextBrush}" FontSize="12" VerticalAlignment="Center"/>
+                <Button Content="Refresh" Command="{Binding RefreshModelsCommand}" Padding="6,2" FontSize="11"/>
+                <ProgressBar IsVisible="{Binding IsLoadingModels}" IsIndeterminate="True" Width="60" VerticalAlignment="Center"/>
+              </StackPanel>
+              <ComboBox ItemsSource="{Binding AvailableModelIds}" SelectedItem="{Binding SelectedModel}" MinWidth="300"/>
+            </StackPanel>
+
+            <!-- Save + status -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Save AI Settings" Command="{Binding SaveAiSettingsCommand}" Padding="12,6"/>
+              <TextBlock Text="{Binding AiSettingsStatus}" Foreground="{DynamicResource LrAccentBlueBrush}" FontSize="11"
+                         VerticalAlignment="Center"
+                         IsVisible="{Binding AiSettingsStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Toast row -->
+      <Border Background="{DynamicResource LrAccentGreenBgBrush}" CornerRadius="6" Padding="12,6"
+              IsVisible="{Binding IsSaved}" HorizontalAlignment="Left">
+        <TextBlock Text="Saved" Foreground="{DynamicResource LrAccentGreenBrush}" FontWeight="SemiBold" FontSize="13"/>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

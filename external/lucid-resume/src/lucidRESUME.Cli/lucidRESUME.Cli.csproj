@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\lucidRESUME.Core\lucidRESUME.Core.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Processing\lucidRESUME.Processing.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Ingestion\lucidRESUME.Ingestion.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Extraction\lucidRESUME.Extraction.csproj" />
+    <ProjectReference Include="..\lucidRESUME.JobSpec\lucidRESUME.JobSpec.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Matching\lucidRESUME.Matching.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Export\lucidRESUME.Export.csproj" />
+    <ProjectReference Include="..\lucidRESUME.JobSearch\lucidRESUME.JobSearch.csproj" />
+    <ProjectReference Include="..\lucidRESUME.AI\lucidRESUME.AI.csproj" />
+    <ProjectReference Include="..\lucidRESUME.GitHub\lucidRESUME.GitHub.csproj" />
+    <ProjectReference Include="..\lucidRESUME.Parsing\lucidRESUME.Parsing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.5" />
+    <PackageReference Include="System.CommandLine" Version="3.0.0-preview.2.26159.112" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- ONNX models: copy from repo root models/ to output if present -->
+    <None Include="..\..\models\**\*" Link="models\%(RecursiveDir)%(FileName)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>e7e3de57-7a67-4384-ba07-90139e44ae83</UserSecretsId>
+  </PropertyGroup>
+
+</Project>
