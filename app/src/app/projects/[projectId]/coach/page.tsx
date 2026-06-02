@@ -131,34 +131,6 @@ const coachFlowSteps: CoachFlowStep[] = [
   },
 ];
 
-const referenceCards = [
-  {
-    name: "wzdnzd/resume",
-    keep: "用户中心、编辑/预览分栏、模块化简历、导出菜单、本地管理",
-    mutate: "作为 Web 母体，只迁移产品结构和可映射代码；当前 ResumeDocument 仍是事实源",
-  },
-  {
-    name: "zineyu/resume",
-    keep: "AI 设置、JD 分析、整份优化预览、另存为副本安全感",
-    mutate: "只吸收 AI/JD 产品流，不把 Tauri/Rust runtime 搬进当前 Web app",
-  },
-  {
-    name: "resume-alchemist",
-    keep: "AI 诊断、JD 匹配、STAR 润色、单句三模式候选",
-    mutate: "改成可审计调研和双层确认，禁止黑盒自动写正文",
-  },
-  {
-    name: "resumify + shushu",
-    keep: "履历追问脚本、诚实警告、achievement audit、JD ranking、interview pack",
-    mutate: "转成本地 evidence graph / risk flag / follow-up questions，不作为 app runtime",
-  },
-  {
-    name: "nexu-io/html-anything",
-    keep: "HTML-first document rendering, structured blocks, template-to-output discipline",
-    mutate: "作为后续 Word/HTML 视觉精修参考；当前 Q&A 入图不引入其 runtime 或依赖",
-  },
-];
-
 function metricTone(value: CoachMetric["tone"]): string {
   if (value === "emerald") return "border-emerald-200 bg-emerald-50 text-emerald-900";
   if (value === "amber") return "border-amber-200 bg-amber-50 text-amber-900";
@@ -872,29 +844,6 @@ function SidePanel({ children }: { children: React.ReactNode }) {
   return <aside className="space-y-4">{children}</aside>;
 }
 
-function ReferencePatternStrip() {
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-slate-500">母体二开映射</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight">以 wzdnzd/resume 为 Web 母体，其他项目补强教练链路</h2>
-        </div>
-        <span className="rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600">本地-first · 可审计 · confirmed-only preview</span>
-      </div>
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {referenceCards.map((card) => (
-          <div key={card.name} className="rounded-2xl border border-slate-200 p-4 text-sm">
-            <p className="font-semibold text-slate-950">{card.name}</p>
-            <p className="mt-3 text-slate-600">保留：{card.keep}</p>
-            <p className="mt-2 text-slate-500">魔改：{card.mutate}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function isEligibleEvidence(evidence: ResumeDocument["experiences"][number]["evidence"][number]): boolean {
   return evidence.actions.length > 0 && evidence.results.length > 0 && evidence.results.some((result) => result.confidence === "confirmed");
 }
@@ -1254,7 +1203,7 @@ function BuilderSnapshotWorkbench({
 }) {
   const viewModes = ["编辑 + 预览", "仅编辑", "仅预览"];
   return (
-    <SectionCard title="母体编辑器映射" eyebrow="wzdnzd/resume 式管理 + 编辑 + 预览底座">
+    <SectionCard title="确认内容排版入口" eyebrow="本地管理 + 编辑 + 预览底座">
       <div className="space-y-5">
         <div className="grid gap-3 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 p-4">
@@ -1331,7 +1280,7 @@ function BuilderSnapshotWorkbench({
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4 text-xs leading-5 text-slate-500">
-              迁移边界：这里只做 `ResumeDocument` → builder snapshot 的本地映射；不导入 localStorage、Tauri、Supabase 或真实 provider 运行时。未确认事实留在 evidence graph，不进入预览或导出入口。
+              确认边界：这里只做 `ResumeDocument` → builder snapshot 的本地映射；不导入 localStorage、Tauri、Supabase 或真实 provider 运行时。未确认事实留在 evidence graph，不进入预览或导出入口。
             </div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1579,7 +1528,6 @@ export default async function CoachPage({ params, searchParams }: Props) {
 
         <CoachFlowRail steps={coachFlowSteps} />
         <CoachMetrics metrics={coachMetrics} />
-        <ReferencePatternStrip />
         <BuilderSnapshotWorkbench projectId={project.id} snapshot={builderSnapshot} summary={builderSummary} />
         <ExperienceQuestionWorkbench projectId={project.id} resumeId={master?.id} session={qaSession} items={qaQueue} />
 

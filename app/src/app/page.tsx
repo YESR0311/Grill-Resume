@@ -15,7 +15,7 @@ const sources = [
   "resume-alchemist 的生成流程",
   "resumify 的经历梳理",
   "shushu 的材料审计",
-  "wzdnzd 的中文 Web 简历体验",
+  "成熟 Web 简历 builder 的模块化体验",
   "JadeAI / lucidRESUME / starry / deep-interview 的评估与追问方法",
 ];
 
@@ -42,7 +42,7 @@ export default function Home() {
                   从流水账到可验证中文简历的交互式工作台
                 </h1>
                 <p className="mt-5 max-w-3xl text-base leading-7 text-slate-600">
-                  这个项目不是模板编辑器，而是把多个简历项目的优点二开成一条闭环：录入材料、逐轮追问、联网求证、AI 候选润色、最终只导出 confirmed-only 内容。
+                  这个项目不是模板编辑器，而是把多个简历项目的优点重组成一条闭环：录入材料、逐轮追问、联网求证、AI 候选润色、最终只导出 confirmed-only 内容。
                 </p>
               </div>
 
@@ -81,7 +81,7 @@ export default function Home() {
         <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <p className="text-sm font-medium text-slate-500">rmx 来源吸收</p>
-            <h2 className="mt-2 text-2xl font-semibold">不是从零写模板，而是取长避短后二开</h2>
+            <h2 className="mt-2 text-2xl font-semibold">不是从零写模板，而是取长避短后重组</h2>
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
               {sources.map((source) => (
                 <li key={source} className="rounded-2xl bg-slate-50 px-4 py-3">{source}</li>

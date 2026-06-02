@@ -1,22 +1,24 @@
-# 简历 rmx child
+# Grill-Resume rmx child
 
-简历子项目目标：整合多个简历生成、优化、管理、导出项目的优点，形成完整的交互式问答 → 网络评估 → AI 润色 → 中文 Word 输出工具链。
+Grill-Resume 目标：整合多个 resume 生成、优化、管理、导出项目的优点，形成完整的交互式问答 → 网络评估 → AI 润色 → 中文 Word 输出工具链。
 
-当前阶段：`05-24-resume-grill-product` umbrella in_progress，slice-1 (infra + privacy + intake) 进行中。
+当前阶段：`06-02-resume-remix-overhaul` umbrella in_progress，stage0 已完成，stage1 de-signature + naming 进行中。
 
 ## 战略四问
 
 ### 采（借鉴的能力 + 出处）
 
 - 多源采集 + 流水账抽取：`wzdnzd-resume` Web 简历布局；`resume-alchemist` AI 诊断流程；`resumify` 实习经历内容方法。
+- 采用 `JobPilot`（`jade-ai` 超集）作为 editor/preview/排版组件主骨架，后续改造成 confirmed-only layout editor。
+- `html-anything` 的页面元素设计方法进入 renderer-agnostic layout schema，作为 HTML preview 与 docx direct render 的共同结构源。
 - 严谨客观评估：`lucid-resume` 的 skill ledger + provenance chain（每技能有出处链路 + 计算年数 + 证据强度）；`shushu-internship-resume-optimizer` 的多源材料审计与排序；`jade-ai` 的 ATS 模板检测理念。
-- Grill 风格对话引擎：`deep-interview-omc` 的 Ouroboros Socratic + 数学化 ambiguity scoring + ONE-question-at-a-time + 弱维度迭代；`starry` 的 STARR（含 Reflection）+ Facts-only + Companies-from-achievements 自动派生。
+- Hybrid grill 引擎：确定性 turn state machine + 弱维度 scoring 保底，LLM 只做受 evidence 约束的澄清、冲突检测、动态追问和结构化草稿。
 - 中文 DOCX 输出：`resume-builder-skill` 的 11+ 岗位维度 + 中文 ATS 友好排版 + HTML/DOCX 双出；`jade-ai` 的 Next.js stack 同构与 DOCX route 形态。
 - Confidence tiering（仅概念）：`ResumePRO` README 的 Verified/Calculated/Estimated 三档 + Phase A/B 策略 + 6 维 scoring + MoSCoW/Iceberg/semantic-cluster JD 分析。仅作概念借鉴，不可读源码（ARR）。
 
 ### 避（明确不学的）
 
-- `wzdnzd-resume` / `zineyu-resume` 的纯前端"所见即所得" UI 模式直接搬到 owned；owned 走 Server Action + confirmed-only 边界，不做客户端富文本编辑。
+- `wzdnzd-resume` / `zineyu-resume` 的纯前端自由写事实模式直接搬到 owned；owned editor 只做排版与措辞微调，新事实回到 grill 确认。
 - `lucid-resume` 的 19,983 技能 LinkedIn 分类表（来源 license 不明，需独立审）。
 - `lucid-resume` C#/WPF 桌面层（owned 是 Next.js + React，不复用桌面控件）。
 - `jade-ai` 的 Puppeteer PDF 渲染 + 50 模板（owned MVP 仅 docx 包直渲 + 1 个 zh-clean 模板）。
@@ -59,8 +61,10 @@
 | `lucid-resume/` | Unlicense | skill ledger + provenance + RRF 5 层抽取 + ATS detection + DOCX/PDF + local Ollama |
 | `resume-builder-skill/` | MIT (README only · needs-review) | Skill 形式中文 HTML+DOCX 双出 + 11+ 岗位维度 + ATS 友好 |
 | `jade-ai/` | Apache-2.0 | Next.js 16 App Router resume builder + 50 模板 + 多格式导出 + 双语 |
+| `JobPilot/` | Apache-2.0 | `jade-ai` 超集：editor/preview/排版组件主骨架，剥离 Tauri/auth/db/i18n 后改造 |
 | `starry/` | MIT | STARR + Facts-only + Companies 派生 + Claude commands |
 | `deep-interview-omc/` (sparse) | MIT | `skills/deep-interview/` only：Ouroboros Socratic + ambiguity scoring + one-question + 弱维度迭代 |
+| `html-anything/` | Apache-2.0 | 页面元素设计方法与结构化 block vocabulary；只借鉴 layout schema 思路，不走 HTML→docx |
 
 仅概念借鉴（不入 `external/`）：
 
@@ -79,6 +83,6 @@
 
 - `external/` 默认只读。
 - owned 改动仅在 `app/`、`build/`、`.trellis/spec/`、`.trellis/tasks/<task>/`。
-- 不从本子项目修改 `/home/yesr/projects/aaa/` 根 + `aaa/.claude/` + `aaa/.trellis/` + `aaa/rmx/manifest.json` 中除 `children[简历]` 路径外的其它内容。
+- 不从本子项目修改 `/home/yesr/projects/aaa/` 根 + `aaa/.claude/` + `aaa/.trellis/` + `aaa/rmx/manifest.json` 中除 `children[Grill-Resume]` 路径外的其它内容。
 - 不自动 commit / push / PR / 外部消息。
 - `~/.claude/skills/grill-with-docs/SKILL.md` 不动。

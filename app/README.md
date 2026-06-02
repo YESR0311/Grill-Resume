@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Grill-Resume
 
-## Getting Started
+Grill-Resume 是一个本地优先的中文简历工作台，用于把原始材料、岗位 JD、追问记录和已确认 STAR 证据整理成可导出的 confirmed-only 简历。
 
-First, run the development server:
+## 核心边界
+
+- 默认读取和写入本机 workspace。
+- 联网搜索和 AI 调用必须经过隐私预览确认。
+- AI 只生成候选建议，不直接写入 confirmed bullet。
+- 导出只使用用户已确认的内容，缺口以 partial/gap 方式暴露，不伪造事实。
+
+## 本地运行
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm exec next dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+默认访问 `http://localhost:3000`。如果当前 pnpm 版本要求 workspace 文件必须包含 `packages` 字段，可改用本地 bin：
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+./node_modules/.bin/next dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 验证
 
-## Learn More
+```bash
+./node_modules/.bin/tsc --noEmit
+./node_modules/.bin/eslint src --max-warnings=0
+./node_modules/.bin/next build
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+项目使用 Next.js 16 和 React 19。修改 route、Server Action 或 client/server 边界前，先阅读 `node_modules/next/dist/docs/` 中对应章节。

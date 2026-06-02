@@ -1,8 +1,8 @@
 {
-  "name": "简历",
+  "name": "Grill-Resume",
   "type": "rmx-child-project",
   "parent": "/home/yesr/projects/aaa/rmx",
-  "path": "简历",
+  "path": "Grill-Resume",
   "purpose": "resume generation/optimization/management remix project",
   "trellis": ".trellis",
   "boundaries": {
@@ -20,7 +20,7 @@
   "external": [
     {
       "name": "resume-alchemist",
-      "path": "简历/external/resume-alchemist",
+      "path": "Grill-Resume/external/resume-alchemist",
       "sourceUrl": "https://github.com/Anarkh-Lee/resume-alchemist",
       "license": "MIT",
       "tracking": "vendored",
@@ -42,7 +42,7 @@
     },
     {
       "name": "resumify",
-      "path": "简历/external/resumify",
+      "path": "Grill-Resume/external/resumify",
       "sourceUrl": "https://github.com/breaker505/resumify",
       "license": "MIT",
       "tracking": "vendored",
@@ -64,7 +64,7 @@
     },
     {
       "name": "shushu-internship-resume-optimizer",
-      "path": "简历/external/shushu-internship-resume-optimizer",
+      "path": "Grill-Resume/external/shushu-internship-resume-optimizer",
       "sourceUrl": "https://github.com/Sunanzhe2004/shushu-internship-resume-optimizer",
       "license": "Apache-2.0",
       "tracking": "vendored",
@@ -86,7 +86,7 @@
     },
     {
       "name": "wzdnzd-resume",
-      "path": "简历/external/wzdnzd-resume",
+      "path": "Grill-Resume/external/wzdnzd-resume",
       "sourceUrl": "https://github.com/wzdnzd/resume",
       "license": "MIT",
       "tracking": "vendored",
@@ -108,7 +108,7 @@
     },
     {
       "name": "zineyu-resume",
-      "path": "简历/external/zineyu-resume",
+      "path": "Grill-Resume/external/zineyu-resume",
       "sourceUrl": "https://github.com/zineyu/resume",
       "license": "UNKNOWN",
       "tracking": "vendored",
@@ -130,7 +130,7 @@
     },
     {
       "name": "lucid-resume",
-      "path": "简历/external/lucid-resume",
+      "path": "Grill-Resume/external/lucid-resume",
       "sourceUrl": "https://github.com/scottgal/lucidRESUME",
       "license": "Unlicense",
       "tracking": "vendored",
@@ -173,7 +173,7 @@
     },
     {
       "name": "resume-builder-skill",
-      "path": "简历/external/resume-builder-skill",
+      "path": "Grill-Resume/external/resume-builder-skill",
       "sourceUrl": "https://github.com/Jichengyuuuuu/resume-builder-skill",
       "license": "MIT",
       "tracking": "vendored",
@@ -211,7 +211,7 @@
     },
     {
       "name": "jade-ai",
-      "path": "简历/external/jade-ai",
+      "path": "Grill-Resume/external/jade-ai",
       "sourceUrl": "https://github.com/chtw3230/JadeAI",
       "license": "Apache-2.0",
       "tracking": "vendored",
@@ -251,7 +251,7 @@
     },
     {
       "name": "starry",
-      "path": "简历/external/starry",
+      "path": "Grill-Resume/external/starry",
       "sourceUrl": "https://github.com/katilevina/starry",
       "license": "MIT",
       "tracking": "vendored",
@@ -291,7 +291,7 @@
     },
     {
       "name": "deep-interview-omc",
-      "path": "简历/external/deep-interview-omc",
+      "path": "Grill-Resume/external/deep-interview-omc",
       "sourceUrl": "https://github.com/Yeachan-Heo/oh-my-claudecode",
       "license": "MIT",
       "tracking": "vendored",
