@@ -35,3 +35,15 @@ external/**/.env_*
 .mcp.json
 .playwright-mcp/
 *.log
+
+# agent/Trellis process notes and generated research packs
+AGENTS.md
+CLAUDE.md
+BRAIN.md
+app/AGENTS.md
+app/CLAUDE.md
+research/
+external/**/.codegraph/
+external/**/.agent-log
+external/**/.agents/
+external/**/.session-id

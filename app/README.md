@@ -1,32 +1,30 @@
-# Grill-Resume
+# Grill-Resume 应用
 
-Grill-Resume 是一个本地优先的中文简历工作台，用于把原始材料、岗位 JD、追问记录和已确认 STAR 证据整理成可导出的 confirmed-only 简历。
-
-## 核心边界
-
-- 默认读取和写入本机 workspace。
-- 联网搜索和 AI 调用必须经过隐私预览确认。
-- AI 只生成候选建议，不直接写入 confirmed bullet。
-- 导出只使用用户已确认的内容，缺口以 partial/gap 方式暴露，不伪造事实。
+这是 Grill-Resume 的本地应用目录。项目主要功能和完整使用说明见仓库根目录的 `README.md`。
 
 ## 本地运行
 
 ```bash
-pnpm exec next dev
+pnpm install
+pnpm dev
 ```
 
-默认访问 `http://localhost:3000`。如果当前 pnpm 版本要求 workspace 文件必须包含 `packages` 字段，可改用本地 bin：
+默认访问：
 
-```bash
-./node_modules/.bin/next dev
+```text
+http://localhost:3000
 ```
 
-## 验证
+## 常用入口
 
-```bash
-./node_modules/.bin/tsc --noEmit
-./node_modules/.bin/eslint src --max-warnings=0
-./node_modules/.bin/next build
-```
+- 首页：创建和进入简历项目
+- `/settings/models`：配置 AI 模型
+- `/settings/search`：配置联网搜索
+- 项目页：录入材料、进入 Grill 追问、编辑简历、评分优化和导出
 
-项目使用 Next.js 16 和 React 19。修改 route、Server Action 或 client/server 边界前，先阅读 `node_modules/next/dist/docs/` 中对应章节。
+## 使用原则
+
+- 默认本地保存。
+- 外发请求先经过隐私预览。
+- AI 只生成候选，不直接确认事实。
+- 最终导出只包含已确认内容。

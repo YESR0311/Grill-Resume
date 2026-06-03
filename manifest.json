@@ -1,7 +1,7 @@
 {
   "name": "Grill-Resume",
   "type": "rmx-child-project",
-  "parent": "/home/yesr/projects/aaa/rmx",
+  "parent": "<rmx-root>",
   "path": "Grill-Resume",
   "purpose": "resume generation/optimization/management remix project",
   "trellis": ".trellis",
@@ -12,9 +12,9 @@
       "build/"
     ],
     "doNotModifyFromHere": [
-      "/home/yesr/projects/aaa/CLAUDE.md",
-      "/home/yesr/projects/aaa/.claude/",
-      "/home/yesr/projects/aaa/.trellis/"
+      "<workspace-root>/CLAUDE.md",
+      "<workspace-root>/.claude/",
+      "<workspace-root>/.trellis/"
     ]
   },
   "external": [
@@ -123,7 +123,7 @@
         "direct code copy before license/source verification"
       ],
       "files": 201,
-      "sizeMB": 21.0,
+      "sizeMB": 21,
       "licenseStatus": "needs-review",
       "sourceEvidence": "README/.git metadata checked locally",
       "licenseEvidence": "No root LICENSE; README does not state license in fetched content"
