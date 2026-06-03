@@ -1,9 +1,8 @@
 "use client";
 
-// UI pattern reference: external/JobPilot/src/components/editor/editor-canvas.tsx and preview/editor controls (Apache-2.0). Reimplemented for Grill-Resume LayoutSchema; no code copied.
+// UI skeleton reference: external/JobPilot/src/components/editor/{editor-toolbar,editor-sidebar,editor-canvas,editor-preview-panel,theme-editor}.tsx (Apache-2.0). Reimplemented for Grill-Resume LayoutSchema; no code copied.
 
 import { useMemo, useState, useTransition } from "react";
-import { HtmlPreviewRenderer } from "@/features/layout/render-html";
 import {
   applyLayoutOverrides,
   createDefaultLayoutOverrides,
@@ -13,8 +12,12 @@ import {
 import type { LayoutBlock, LayoutSchema, LayoutTheme } from "@/features/layout/schema";
 import { saveLayoutOverridesAction } from "./actions";
 import { BlockReorderPanel, blockDisplayLabel } from "./block-reorder";
+import { EditorPreviewPanel } from "./editor-preview-panel";
+import { EditorSidebar } from "./editor-sidebar";
+import { EditorToolbar, type EditorSaveState } from "./editor-toolbar";
 import type { MicroEditEvidence } from "./grounding";
 import { MicroEditPanel } from "./micro-edit";
+import { ThemeEditor } from "./theme-editor";
 
 type EditableBullet = {
   bulletId: string;
@@ -67,27 +70,44 @@ function bulletBlocks(schema: LayoutSchema): EditableBullet[] {
   return bullets;
 }
 
+function cleanThemeValue<K extends keyof LayoutTheme>(key: K, value: LayoutTheme[K]): LayoutTheme[K] {
+  if (key === "baseFontPt" && typeof value === "number") return Math.min(14, Math.max(8, value)) as LayoutTheme[K];
+  if (key === "lineSpacing" && typeof value === "number") return Math.min(1.6, Math.max(1, value)) as LayoutTheme[K];
+  return value;
+}
+
 export function LayoutEditor({
   projectId,
   resumeId,
+  title,
   baseSchema,
   initialOverrides,
   evidenceMap,
 }: {
   projectId: string;
   resumeId: string;
+  title: string;
   baseSchema: LayoutSchema;
   initialOverrides: LayoutOverrides;
   evidenceMap: Record<string, MicroEditEvidence>;
 }) {
   const [overrides, setOverrides] = useState<LayoutOverrides>(() => initialOverrides ?? createDefaultLayoutOverrides(resumeId));
+  const [history, setHistory] = useState<LayoutOverrides[]>([]);
+  const [redoStack, setRedoStack] = useState<LayoutOverrides[]>([]);
+  const [saveState, setSaveState] = useState<EditorSaveState>("dirty");
   const [saveMessage, setSaveMessage] = useState("未保存");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [showThemeEditor, setShowThemeEditor] = useState(false);
   const [isPending, startTransition] = useTransition();
   const effectiveSchema = useMemo(() => applyLayoutOverrides(baseSchema, overrides), [baseSchema, overrides]);
   const blocks = useMemo(() => orderedLayoutBlocks(baseSchema, overrides), [baseSchema, overrides]);
   const editableBullets = useMemo(() => bulletBlocks(effectiveSchema), [effectiveSchema]);
+  const theme = effectiveSchema.theme;
 
   function updateOverrides(updater: (current: LayoutOverrides) => LayoutOverrides): void {
+    setHistory((current) => [...current.slice(-19), overrides]);
+    setRedoStack([]);
+    setSaveState("dirty");
     setSaveMessage("未保存");
     setOverrides((current) => updater(current));
   }
@@ -100,6 +120,14 @@ export function LayoutEditor({
         [key]: value,
       },
     }));
+  }
+
+  function resetTheme(): void {
+    updateOverrides((current) => {
+      const next: LayoutOverrides = { ...current };
+      delete next.theme;
+      return next;
+    });
   }
 
   function toggleBlock(key: string, hidden: boolean): void {
@@ -128,105 +156,101 @@ export function LayoutEditor({
 
   function save(): void {
     startTransition(async () => {
+      setSaveState("saving");
       setSaveMessage("保存中");
       const result = await saveLayoutOverridesAction(projectId, resumeId, overrides);
       if (result.ok) {
         setOverrides(result.overrides);
+        setSaveState("saved");
         setSaveMessage(`已保存 ${new Date(result.overrides.updatedAt ?? Date.now()).toLocaleString("zh-CN")}`);
       } else {
+        setSaveState("error");
         setSaveMessage(result.message);
       }
     });
   }
 
-  const theme = effectiveSchema.theme;
+  function undo(): void {
+    const previous = history.at(-1);
+    if (!previous) return;
+    setHistory((current) => current.slice(0, -1));
+    setRedoStack((current) => [...current, overrides]);
+    setOverrides(previous);
+    setSaveState("dirty");
+    setSaveMessage("未保存");
+  }
+
+  function redo(): void {
+    const next = redoStack.at(-1);
+    if (!next) return;
+    setRedoStack((current) => current.slice(0, -1));
+    setHistory((current) => [...current.slice(-19), overrides]);
+    setOverrides(next);
+    setSaveState("dirty");
+    setSaveMessage("未保存");
+  }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-950">排版编辑</h2>
-              <p className="mt-1 text-xs text-slate-500">{saveMessage}</p>
-            </div>
-            <button
-              type="button"
-              onClick={save}
-              disabled={isPending}
-              className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              保存排版
-            </button>
-          </div>
-        </div>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <EditorToolbar
+        title={title}
+        saveState={saveState}
+        saveMessage={saveMessage}
+        canUndo={history.length > 0}
+        canRedo={redoStack.length > 0}
+        isSaving={isPending}
+        showThemeEditor={showThemeEditor}
+        projectHref={`/projects/${projectId}`}
+        scoreHref={`/projects/${projectId}/resumes/${resumeId}/score`}
+        exportHref={`/projects/${projectId}/resumes/${resumeId}/export`}
+        onUndo={undo}
+        onRedo={redo}
+        onSave={save}
+        onToggleTheme={() => setShowThemeEditor((current) => !current)}
+      />
 
-        <BlockReorderPanel
+      <div className="flex min-h-[760px]">
+        <EditorSidebar
           blocks={blocks}
-          onMove={(key, direction) => updateOverrides((current) => ({ ...current, blockOrder: moveKey(orderedKeys(baseSchema, current), key, direction) }))}
-          onDrop={(key, targetKey) => updateOverrides((current) => ({ ...current, blockOrder: dropKey(orderedKeys(baseSchema, current), key, targetKey) }))}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
           onToggle={toggleBlock}
+          onDrop={(key, targetKey) => updateOverrides((current) => ({ ...current, blockOrder: dropKey(orderedKeys(baseSchema, current), key, targetKey) }))}
         />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-950">主题</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <label className="text-xs font-medium text-slate-600">
-              主题色
-              <input
-                type="color"
-                value={theme.accentColor}
-                onChange={(event) => updateTheme("accentColor", event.currentTarget.value)}
-                className="mt-2 h-10 w-full rounded-lg border border-slate-300 bg-white px-2"
-              />
-            </label>
-            <label className="text-xs font-medium text-slate-600">
-              中文字体
-              <input
-                value={theme.fontCJK}
-                onChange={(event) => updateTheme("fontCJK", event.currentTarget.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-xs font-medium text-slate-600">
-              字号 pt
-              <input
-                type="number"
-                min="8"
-                max="14"
-                step="0.5"
-                value={theme.baseFontPt}
-                onChange={(event) => updateTheme("baseFontPt", Number(event.currentTarget.value))}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-xs font-medium text-slate-600">
-              行距
-              <input
-                type="number"
-                min="1"
-                max="1.6"
-                step="0.05"
-                value={theme.lineSpacing}
-                onChange={(event) => updateTheme("lineSpacing", Number(event.currentTarget.value))}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-            </label>
+        <section className="flex min-w-0 flex-[4] flex-col bg-slate-50">
+          <div className="flex h-10 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Canvas</p>
+            <p className="text-xs text-slate-500">只改排版和措辞微调；新增事实回 grill 补证据</p>
           </div>
-        </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            <BlockReorderPanel
+              blocks={blocks}
+              selectedKey={selectedKey}
+              onSelect={setSelectedKey}
+              onMove={(key, direction) => updateOverrides((current) => ({ ...current, blockOrder: moveKey(orderedKeys(baseSchema, current), key, direction) }))}
+              onDrop={(key, targetKey) => updateOverrides((current) => ({ ...current, blockOrder: dropKey(orderedKeys(baseSchema, current), key, targetKey) }))}
+              onToggle={toggleBlock}
+            />
 
-        <MicroEditPanel
-          bullets={editableBullets}
-          evidenceMap={evidenceMap}
-          grillHref={`/projects/${projectId}/coach`}
-          onChange={updateBulletOverride}
-        />
-      </div>
+            <MicroEditPanel
+              bullets={editableBullets}
+              evidenceMap={evidenceMap}
+              grillHref={`/projects/${projectId}/coach`}
+              onChange={updateBulletOverride}
+            />
+          </div>
+        </section>
 
-      <div className="min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-slate-100 p-4 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
-        <div className="origin-top-left scale-[0.62] sm:scale-[0.72] lg:scale-[0.82] xl:scale-[0.72] 2xl:scale-[0.86]">
-          <HtmlPreviewRenderer schema={effectiveSchema} />
-        </div>
+        <EditorPreviewPanel schema={effectiveSchema} />
+
+        {showThemeEditor ? (
+          <ThemeEditor
+            theme={theme}
+            onThemeChange={(key, value) => updateTheme(key, cleanThemeValue(key, value))}
+            onReset={resetTheme}
+          />
+        ) : null}
       </div>
     </section>
   );

@@ -20,11 +20,15 @@ export function blockDisplayLabel(block: LayoutBlock): string {
 
 export function BlockReorderPanel({
   blocks,
+  selectedKey,
+  onSelect,
   onMove,
   onDrop,
   onToggle,
 }: {
   blocks: KeyedLayoutBlock[];
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
   onMove: (key: string, direction: -1 | 1) => void;
   onDrop: (key: string, targetKey: string) => void;
   onToggle: (key: string, hidden: boolean) => void;
@@ -50,7 +54,11 @@ export function BlockReorderPanel({
               setDraggedKey(null);
             }}
             className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
-              item.hidden ? "border-slate-200 bg-slate-50 text-slate-400" : "border-slate-300 bg-white text-slate-800"
+              selectedKey === item.key
+                ? "border-slate-950 bg-white text-slate-950"
+                : item.hidden
+                  ? "border-slate-200 bg-slate-50 text-slate-400"
+                  : "border-slate-300 bg-white text-slate-800"
             }`}
           >
             <span className="w-5 cursor-grab text-center text-slate-400" aria-hidden="true">::</span>
@@ -61,7 +69,9 @@ export function BlockReorderPanel({
                 onChange={(event) => onToggle(item.key, !event.currentTarget.checked)}
                 className="size-4 rounded border-slate-300"
               />
-              <span className="truncate">{blockLabel(item.block)}</span>
+              <button type="button" onClick={() => onSelect(item.key)} className="min-w-0 flex-1 truncate text-left">
+                {blockLabel(item.block)}
+              </button>
             </label>
             <button
               type="button"

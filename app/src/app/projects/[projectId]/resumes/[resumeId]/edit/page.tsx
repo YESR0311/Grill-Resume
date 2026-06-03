@@ -144,6 +144,7 @@ export default async function EditResumePage({ params }: Props) {
         <LayoutEditor
           projectId={project.id}
           resumeId={resume.id}
+          title={resume.name}
           baseSchema={layoutProjection.schema}
           initialOverrides={layoutOverrides}
           evidenceMap={microEditEvidenceMap}
