@@ -5,6 +5,7 @@ import { listModelConfigs } from "@/features/ai/model-configs";
 import { LayoutEditor } from "@/features/editor/layout-editor";
 import { buildMicroEditEvidenceMap } from "@/features/editor/grounding";
 import { project as projectLayout } from "@/features/layout/project";
+import { readSession as readPipelineSession } from "@/features/pipeline/storage";
 import {
   getProject,
   getProjectResume,
@@ -25,6 +26,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ projectId: string; resumeId: string }>;
+  searchParams?: Promise<{ pipeline?: string; session?: string }>;
 };
 
 async function saveBasics(projectId: string, resumeId: string, formData: FormData) {
@@ -90,8 +92,9 @@ function first<T>(items: T[]): T | undefined {
   return items[0];
 }
 
-export default async function EditResumePage({ params }: Props) {
+export default async function EditResumePage({ params, searchParams }: Props) {
   const { projectId, resumeId } = await params;
+  const query = (await searchParams) ?? {};
   const project = getProject(projectId);
   if (!project) notFound();
 
@@ -101,7 +104,11 @@ export default async function EditResumePage({ params }: Props) {
   const { resume, document } = current;
   const layoutOverrides = await readLayoutOverrides(project.id, resume.id);
   if (!layoutOverrides) notFound();
-  const layoutProjection = projectLayout(document);
+  const pipelineSession = query.session ? await readPipelineSession(project.id, query.session) : null;
+  const pipelineSnapshot = pipelineSession?.resumeId === resume.id ? pipelineSession.exportSnapshot : undefined;
+  const layoutProjection = pipelineSnapshot
+    ? { schema: pipelineSnapshot.layoutSchema, gap: pipelineSnapshot.gapReport }
+    : projectLayout(document);
   const microEditEvidenceMap = buildMicroEditEvidenceMap(document);
   const versions = listVersions(resume.id);
   const modelConfigs = await listModelConfigs();
@@ -139,6 +146,11 @@ export default async function EditResumePage({ params }: Props) {
           <p className="mt-3 text-sm text-slate-500">
             {resume.kind === "master" ? "主简历" : "岗位版简历"} · 保存后实时刷新预览。
           </p>
+          {pipelineSnapshot ? (
+            <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+              来自 Pipeline — 当前编辑器预览使用 pipeline session 中保存的 LayoutSchema；确认后可进入导出页。
+            </p>
+          ) : null}
         </section>
 
         <LayoutEditor

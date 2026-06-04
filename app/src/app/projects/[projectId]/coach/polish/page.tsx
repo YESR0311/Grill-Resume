@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { applyPolishCandidateAction, discardPolishCandidateAction, generatePolishCandidatesAction } from "@/features/coach/actions";
+import { advancePipelineAction } from "@/features/pipeline/actions";
+import { getPipelinePolishProgress, isPipelinePolishReadyForExport } from "@/features/pipeline/polish";
+import { getSession as getPipelineSession } from "@/features/pipeline/storage";
 import { diffText } from "@/features/polish/diff";
 import { listPolishRuns, type PolishRun } from "@/features/polish/store";
 import { toneLabel } from "@/features/polish/tone";
@@ -10,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ projectId: string }>;
-  searchParams?: Promise<{ polishStatus?: string; polishCode?: string; run?: string }>;
+  searchParams?: Promise<{ polishStatus?: string; polishCode?: string; run?: string; session?: string; pipeline?: string }>;
 };
 
 function DiffView({ before, after }: { before: string; after: string }) {
@@ -47,6 +50,10 @@ export default async function PolishPage({ params, searchParams }: Props) {
       .filter((bullet) => bullet.status === "confirmed")
       .map((bullet) => ({ experience, bullet })),
   ) : [];
+  const pipelineSession = await getPipelineSession(project.id);
+  const polishProgress = await getPipelinePolishProgress(project.id, master.id);
+  const readyForExport = isPipelinePolishReadyForExport(polishProgress);
+  const pipelinePolishActive = pipelineSession?.currentStage === "polish";
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-950">
@@ -66,8 +73,35 @@ export default async function PolishPage({ params, searchParams }: Props) {
           {query.polishStatus === "generated" ? <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">已生成 3 个润色候选。</p> : null}
           {query.polishStatus === "applied" ? <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">已新增 confirmed bullet，原文保留。</p> : null}
           {query.polishStatus === "discarded" ? <p className="mt-4 rounded-2xl bg-slate-100 p-3 text-sm text-slate-700">已丢弃候选。</p> : null}
+          {query.pipeline === "polish-generated" ? <p className="mt-4 rounded-2xl bg-sky-50 p-3 text-sm text-sky-700">Pipeline 已为可润色 bullet 生成缺失候选。</p> : null}
           {resumeError ? <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{resumeError}</p> : null}
         </section>
+
+        {pipelinePolishActive ? (
+          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Pipeline polish stage</p>
+                <h2 className="mt-1 text-xl font-semibold">候选处理进度</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  已覆盖 {polishProgress.coveredBulletCount}/{polishProgress.eligibleBulletCount} 条 confirmed bullet；
+                  待处理候选 {polishProgress.readyCandidateCount} 个；已完成 run {polishProgress.resolvedRunCount} 个。
+                </p>
+              </div>
+              {readyForExport && pipelineSession ? (
+                <form action={advancePipelineAction.bind(null, project.id, pipelineSession.id)}>
+                  <button className="rounded-full bg-slate-950 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                    推进到导出
+                  </button>
+                </form>
+              ) : (
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                  处理全部 ready 候选后可导出
+                </span>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h2 className="text-xl font-semibold">可润色 confirmed bullets</h2>

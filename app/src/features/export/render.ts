@@ -1,4 +1,6 @@
 import type { LayoutOverrides } from "@/features/layout/overrides";
+import type { LayoutSchema } from "@/features/layout/schema";
+import type { DocxGapReport } from "@/features/export/gap-report";
 import type { ExportFormat, ResumeDocument } from "@/features/resume/types";
 import { buildAtsDocx } from "./templates/ats";
 import { buildVisualDocx } from "./templates/zh-visual";
@@ -9,7 +11,7 @@ import { renderResumeDocx } from "./docx";
 export async function renderExport(
   document: ResumeDocument,
   format: ExportFormat,
-  options: { partialMode?: boolean; layoutOverrides?: LayoutOverrides } = {},
+  options: { partialMode?: boolean; layoutOverrides?: LayoutOverrides; layoutSchema?: LayoutSchema; gapReport?: DocxGapReport } = {},
 ): Promise<string | Buffer> {
   switch (format) {
     case "json-resume":
@@ -19,7 +21,7 @@ export async function renderExport(
     case "docx-visual":
       return await buildVisualDocx(document);
     case "docx-zh-clean":
-      return (await renderResumeDocx(document, options)).buffer;
+      return (await renderResumeDocx(options.layoutSchema ?? document, options)).buffer;
     case "pdf":
       return renderPdf(document);
     default: {

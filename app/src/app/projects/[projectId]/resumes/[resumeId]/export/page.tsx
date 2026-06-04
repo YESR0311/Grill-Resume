@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { renderExport } from "@/features/export/render";
+import { readSession as readPipelineSession } from "@/features/pipeline/storage";
 import { createExportRecord, getProject, getProjectResume, listExports, readLayoutOverrides } from "@/features/resume/storage";
 import type { ExportFormat } from "@/features/resume/types";
 
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ projectId: string; resumeId: string }>;
+  searchParams?: Promise<{ pipeline?: string; session?: string }>;
 };
 
 function formatLabel(value: string): string {
@@ -34,20 +36,26 @@ async function exportAction(projectId: string, resumeId: string, format: ExportF
 
   const current = await getProjectResume(projectId, resumeId);
   if (!current) notFound();
+  const sessionId = String(formData.get("pipelineSessionId") ?? "").trim();
+  const pipelineSession = sessionId ? await readPipelineSession(projectId, sessionId) : null;
+  const pipelineSnapshot = pipelineSession?.resumeId === resumeId ? pipelineSession.exportSnapshot : undefined;
   const layoutOverrides = await readLayoutOverrides(projectId, resumeId);
   await createExportRecord({
     resumeId,
     format,
     content: await renderExport(current.document, format, {
       partialMode: String(formData.get("partialMode") ?? "") === "1",
-      layoutOverrides: format === "docx-zh-clean" ? layoutOverrides ?? undefined : undefined,
+      layoutOverrides: format === "docx-zh-clean" && !pipelineSnapshot ? layoutOverrides ?? undefined : undefined,
+      layoutSchema: format === "docx-zh-clean" ? pipelineSnapshot?.layoutSchema : undefined,
+      gapReport: format === "docx-zh-clean" ? pipelineSnapshot?.gapReport : undefined,
     }),
   });
   redirect(`/projects/${projectId}/resumes/${resumeId}/export`);
 }
 
-export default async function ResumeExportPage({ params }: Props) {
+export default async function ResumeExportPage({ params, searchParams }: Props) {
   const { projectId, resumeId } = await params;
+  const query = (await searchParams) ?? {};
   const project = getProject(projectId);
   if (!project) notFound();
 
@@ -55,6 +63,8 @@ export default async function ResumeExportPage({ params }: Props) {
   if (!current) notFound();
 
   const { resume, document } = current;
+  const pipelineSession = query.session ? await readPipelineSession(project.id, query.session) : null;
+  const pipelineSnapshot = pipelineSession?.resumeId === resume.id ? pipelineSession.exportSnapshot : undefined;
   const exports = listExports(resume.id);
   const formats: ExportFormat[] = ["docx-zh-clean", "json-resume", "docx-ats", "docx-visual", "pdf"];
 
@@ -76,6 +86,11 @@ export default async function ResumeExportPage({ params }: Props) {
           <p className="mt-3 text-sm leading-6 text-slate-500">
             导出文件保存在当前简历的本机 workspace exports 目录，并写入 SQLite 索引；不调用 AI，不上传云端。
           </p>
+          {pipelineSnapshot ? (
+            <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+              来自 Pipeline — 中文 Word 导出将使用 session 中保存的同一个 LayoutSchema。
+            </p>
+          ) : null}
         </section>
 
         <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
@@ -86,6 +101,7 @@ export default async function ResumeExportPage({ params }: Props) {
               <label className="mt-4 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                 <input type="checkbox" name="privacyConfirmed" value="1" required className="mt-1" />
                 {format === "docx-zh-clean" ? <input type="hidden" name="partialMode" value="1" /> : null}
+                {pipelineSnapshot ? <input type="hidden" name="pipelineSessionId" value={pipelineSession?.id} /> : null}
                 <span>我确认导出文件只应包含 confirmed 内容，并将写入本机 exports 目录。</span>
               </label>
               <button className="mt-5 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800">
