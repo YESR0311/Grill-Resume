@@ -617,7 +617,36 @@ export default async function CoachPage({ params, searchParams }: Props) {
           </div>
         </section>
 
-        <PipelineStatusBar session={pipelineSession} projectId={project.id} resumeId={master?.id} />{pipelineSession && !pipelineSession.egressPlan.userConfirmedAt && !pipelineSession.egressPlan.allConfirmedAt ? <EgressPlanPanel session={pipelineSession} /> : null}
+        <PipelineStatusBar session={pipelineSession} projectId={project.id} resumeId={master?.id} />
+        <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+            Pipeline 工作流程说明
+          </summary>
+          <div className="mt-4 space-y-4 text-sm leading-6 text-slate-700">
+            <section>
+              <h3 className="font-semibold text-slate-900">四个阶段</h3>
+              <ol className="mt-2 list-inside list-decimal space-y-1 pl-1">
+                <li><strong>Grill 追问</strong>：AI 分析问答内容，生成追问建议（LLM）</li>
+                <li><strong>Evaluate 搜索</strong>：网络搜索验证技能稀缺性、公司背景与 JD 匹配度（Tavily + LLM）</li>
+                <li><strong>Polish 润色</strong>：AI 为已确认 bullet 生成 3 个润色候选（保守/平衡/激进）</li>
+                <li><strong>Export 导出</strong>：生成布局预览与 .docx 文件</li>
+              </ol>
+            </section>
+            <section>
+              <h3 className="font-semibold text-slate-900">自动推进（autoAdvance）</h3>
+              <p>批量确认隐私后，首个阶段自动执行；后续阶段需点击“确认并继续”手工推进。</p>
+            </section>
+            <section>
+              <h3 className="font-semibold text-slate-900">Polish 阶段灵活完成</h3>
+              <p>可在候选未全部处理时点击“跳过剩余候选”直接进入 Export；跳过的候选不会应用到简历。</p>
+            </section>
+            <section>
+              <h3 className="font-semibold text-slate-900">失败处理</h3>
+              <p>任何阶段失败后，点击“重试”按钮可重新执行该阶段；失败原因显示在阶段卡片中。</p>
+            </section>
+          </div>
+        </details>
+        {pipelineSession && !pipelineSession.egressPlan.userConfirmedAt && !pipelineSession.egressPlan.allConfirmedAt ? <EgressPlanPanel session={pipelineSession} /> : null}
         <MetricsDashboard projectId={project.id} metrics={coachMetrics} snapshot={builderSnapshot} summary={builderSummary} />
         <GrillSection
           projectId={project.id}

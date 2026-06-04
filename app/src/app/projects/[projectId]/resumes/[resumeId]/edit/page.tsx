@@ -92,6 +92,10 @@ function first<T>(items: T[]): T | undefined {
   return items[0];
 }
 
+function isPipelineSnapshotFresh(snapshotCreatedAt: string, documentUpdatedAt: string): boolean {
+  return snapshotCreatedAt >= documentUpdatedAt;
+}
+
 export default async function EditResumePage({ params, searchParams }: Props) {
   const { projectId, resumeId } = await params;
   const query = (await searchParams) ?? {};
@@ -104,8 +108,16 @@ export default async function EditResumePage({ params, searchParams }: Props) {
   const { resume, document } = current;
   const layoutOverrides = await readLayoutOverrides(project.id, resume.id);
   if (!layoutOverrides) notFound();
-  const pipelineSession = query.session ? await readPipelineSession(project.id, query.session) : null;
-  const pipelineSnapshot = pipelineSession?.resumeId === resume.id ? pipelineSession.exportSnapshot : undefined;
+  const pipelineSession = await readPipelineSession(project.id, query.session);
+  const sessionSnapshot = pipelineSession?.resumeId === resume.id && pipelineSession.currentStage === "export"
+    ? pipelineSession.exportSnapshot
+    : undefined;
+  const pipelineSnapshot = sessionSnapshot && isPipelineSnapshotFresh(sessionSnapshot.createdAt, document.metadata.updatedAt)
+    ? sessionSnapshot
+    : undefined;
+  if (sessionSnapshot && !pipelineSnapshot) {
+    console.warn("Pipeline exportSnapshot is older than resume document; falling back to project(document).");
+  }
   const layoutProjection = pipelineSnapshot
     ? { schema: pipelineSnapshot.layoutSchema, gap: pipelineSnapshot.gapReport }
     : projectLayout(document);
@@ -139,6 +151,33 @@ export default async function EditResumePage({ params, searchParams }: Props) {
             <span className="text-sm text-slate-500">保存后实时刷新预览</span>
           </div>
         </div>
+
+        {pipelineSnapshot ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">Pipeline 已完成</p>
+                <p className="mt-1 text-sm text-emerald-700">
+                  当前简历已生成布局预览。
+                  {pipelineSnapshot.readyForExport
+                    ? "可直接导出 .docx。"
+                    : `还缺 ${pipelineSnapshot.gapReport.missingBasics.length} 项基础信息。`}
+                </p>
+                {pipelineSnapshot.gapReport.missingBasics.length > 0 ? (
+                  <p className="mt-2 text-xs text-emerald-700">
+                    缺失项：{pipelineSnapshot.gapReport.missingBasics.join("、")}
+                  </p>
+                ) : null}
+              </div>
+              <Link
+                href={`/projects/${project.id}/resumes/${resumeId}/export`}
+                className="rounded-full bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-900"
+              >
+                下载 .docx
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
           <p className="text-sm text-slate-500">编辑简历</p>

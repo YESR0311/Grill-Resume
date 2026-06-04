@@ -1,4 +1,4 @@
-import { startPipelineAction } from "@/features/pipeline/actions";
+import { advancePipelineAction, retryPipelineStageAction, startPipelineAction } from "@/features/pipeline/actions";
 import { PIPELINE_STAGES, type PipelineSession, type PipelineStage, type PipelineStageStatus } from "@/features/pipeline";
 
 const stageLabels: Record<PipelineStage, string> = {
@@ -32,6 +32,13 @@ function errorLabel(code: string): string {
   if (code === "stage-timeout") return "阶段执行超时，可稍后重试";
   if (code === "missing-basics") return "导出前需要补齐基础信息";
   return code;
+}
+
+function advanceButtonLabel(stage: PipelineStage): string {
+  if (stage === "grill") return "确认 Grill 结果，进入 Evaluate";
+  if (stage === "evaluate") return "确认评估结果，进入 Polish";
+  if (stage === "polish") return "确认润色结果，进入 Export";
+  return "查看导出结果";
 }
 
 export function PipelineStatusBar({ session, projectId, resumeId }: { session: PipelineSession | null; projectId: string; resumeId?: string }) {
@@ -78,6 +85,27 @@ export function PipelineStatusBar({ session, projectId, resumeId }: { session: P
               <p className="mt-3 font-medium">{stageLabels[stage]}</p>
               {state.errorCode ? <p className="mt-1 text-xs">{errorLabel(state.errorCode)}</p> : null}
               {state.completedAt ? <p className="mt-1 text-xs opacity-70">{state.completedAt}</p> : null}
+              {state.status === "awaiting_user" && state.errorCode !== "egress_pending" ? (
+                <form action={advancePipelineAction.bind(null, projectId, session.id)} className="mt-3">
+                  <button
+                    type="submit"
+                    className="w-full rounded-lg bg-white/80 px-3 py-2 text-xs font-medium ring-1 ring-current hover:bg-white"
+                  >
+                    {advanceButtonLabel(stage)}
+                  </button>
+                </form>
+              ) : null}
+              {state.status === "failed" ? (
+                <form action={retryPipelineStageAction.bind(null, projectId)} className="mt-3">
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <button
+                    type="submit"
+                    className="w-full rounded-lg bg-rose-100 px-3 py-2 text-xs font-medium text-rose-900 hover:bg-rose-200"
+                  >
+                    重试
+                  </button>
+                </form>
+              ) : null}
             </li>
           );
         })}

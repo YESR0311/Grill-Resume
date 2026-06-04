@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { applyPolishCandidateAction, discardPolishCandidateAction, generatePolishCandidatesAction } from "@/features/coach/actions";
-import { advancePipelineAction } from "@/features/pipeline/actions";
+import { advancePipelineAction, skipPolishAndAdvanceAction } from "@/features/pipeline/actions";
 import { getPipelinePolishProgress, isPipelinePolishReadyForExport } from "@/features/pipeline/polish";
 import { getSession as getPipelineSession } from "@/features/pipeline/storage";
 import { diffText } from "@/features/polish/diff";
@@ -89,15 +89,48 @@ export default async function PolishPage({ params, searchParams }: Props) {
                 </p>
               </div>
               {readyForExport && pipelineSession ? (
-                <form action={advancePipelineAction.bind(null, project.id, pipelineSession.id)}>
-                  <button className="rounded-full bg-slate-950 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                    推进到导出
-                  </button>
-                </form>
+                <div className="flex flex-wrap gap-3">
+                  <form action={skipPolishAndAdvanceAction.bind(null, project.id)}>
+                    <input type="hidden" name="sessionId" value={pipelineSession.id} />
+                    <button
+                      type="submit"
+                      className="rounded-full bg-slate-950 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      跳过剩余候选，直接进入 Export
+                    </button>
+                  </form>
+                  <form action={advancePipelineAction.bind(null, project.id, pipelineSession.id)}>
+                    <button
+                      type="submit"
+                      className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      全部处理完成，进入 Export
+                    </button>
+                  </form>
+                </div>
               ) : (
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-                  处理全部 ready 候选后可导出
-                </span>
+                <div className="flex flex-col items-start gap-3">
+                  {pipelineSession ? (
+                    <form action={skipPolishAndAdvanceAction.bind(null, project.id)}>
+                      <input type="hidden" name="sessionId" value={pipelineSession.id} />
+                      <button
+                        type="submit"
+                        className="rounded-full bg-slate-950 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                      >
+                        跳过剩余候选，直接进入 Export
+                      </button>
+                    </form>
+                  ) : null}
+                  {polishProgress.readyCandidateCount > 0 ? (
+                    <p className="max-w-sm text-xs leading-5 text-slate-500">
+                      还有 {polishProgress.readyCandidateCount} 个候选待处理；跳过后这些候选不会应用到简历。
+                    </p>
+                  ) : (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                      等待候选生成或处理状态更新
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </section>

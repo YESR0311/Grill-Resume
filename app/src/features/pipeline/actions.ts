@@ -220,3 +220,61 @@ export async function advancePipelineAction(projectId: string, sessionId: string
   if (!session) redirect(buildPipelineRedirect(projectId, "error", "missing-resume", sessionId));
   redirect(await drivePipeline(projectId, session));
 }
+
+export async function retryPipelineStageAction(projectId: string, formData: FormData) {
+  const sessionId = String(formData.get("sessionId") ?? "");
+  const session = await readOrCreateActionSession(projectId, sessionId);
+  if (!session) redirect(buildPipelineRedirect(projectId, "error", "missing-session", sessionId));
+
+  const stage = session.currentStage;
+  const state = session.stages[stage];
+  if (state.status !== "failed") {
+    redirect(buildPipelineRedirect(projectId, "error", "stage-not-failed", session.id));
+  }
+
+  const retried = await saveSession(advanceStage(session, "retry"));
+  if (retried.stages[stage].status === "in_progress") {
+    const result = await executePipelineStage(projectId, retried);
+    await persistStageResult(retried, result);
+    redirect(result.redirect);
+  }
+
+  redirect(buildPipelineRedirect(projectId, "blocked", "retry-blocked", retried.id));
+}
+
+export async function skipPolishAndAdvanceAction(projectId: string, formData: FormData) {
+  const sessionId = String(formData.get("sessionId") ?? "");
+  const session = await readOrCreateActionSession(projectId, sessionId);
+  if (!session) redirect(buildPipelineRedirect(projectId, "error", "missing-session", sessionId));
+
+  if (session.currentStage !== "polish") {
+    redirect(buildPipelineRedirect(projectId, "error", "invalid-stage-for-skip", session.id));
+  }
+
+  const now = new Date().toISOString();
+  const readyToComplete: PipelineSession = {
+    ...session,
+    updatedAt: now,
+    checkpoints: [
+      ...session.checkpoints,
+      {
+        stageFrom: "polish",
+        stageTo: "polish",
+        timestamp: now,
+        summary: "用户跳过剩余候选，手工完成 polish 阶段",
+      },
+    ],
+    stages: {
+      ...session.stages,
+      polish: {
+        ...session.stages.polish,
+        status: "awaiting_user",
+        completedAt: now,
+        failedAt: undefined,
+        errorCode: undefined,
+      },
+    },
+  };
+
+  redirect(await drivePipeline(projectId, await saveSession(readyToComplete)));
+}
