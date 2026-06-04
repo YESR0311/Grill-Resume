@@ -268,7 +268,7 @@ export async function skipPolishAndAdvanceAction(projectId: string, formData: Fo
       ...session.stages,
       polish: {
         ...session.stages.polish,
-        status: "awaiting_user",
+        status: "completed",
         completedAt: now,
         failedAt: undefined,
         errorCode: undefined,
