@@ -5,8 +5,8 @@ import { CoachActionRedirect, executeGrillEnhancement, executeSearchEvaluation }
 import { generateMissingPipelinePolishRuns } from "./polish";
 import { buildPipelineExportSnapshot } from "./pipeline-exporter";
 import { advanceStage, canAdvance, confirmEgress, setAutoAdvance } from "./orchestrator";
-import { getProjectResume } from "@/features/resume/storage";
-import { readSession, saveSession } from "./storage";
+import { getProjectResume, listResumes } from "@/features/resume/storage";
+import { createSession, readSession, saveSession } from "./storage";
 import type { PipelineExportSnapshot, PipelineSession, PipelineStage } from "./types";
 
 const PIPELINE_STAGE_TIMEOUT_MS = 30_000;
@@ -26,6 +26,24 @@ function buildPrivacyFormData(): FormData {
   const formData = new FormData();
   formData.set("privacyConfirmed", "1");
   return formData;
+}
+
+function getMasterResumeId(projectId: string): string | null {
+  return listResumes(projectId).find((resume) => resume.kind === "master")?.id ?? null;
+}
+
+async function createActionSession(projectId: string, resumeId: string | null): Promise<PipelineSession | null> {
+  if (!resumeId) return null;
+  const current = await getProjectResume(projectId, resumeId);
+  return current ? createSession(projectId, resumeId, true) : null;
+}
+
+async function readOrCreateActionSession(projectId: string, sessionId: string, resumeId?: string): Promise<PipelineSession | null> {
+  const session = await readSession(projectId, sessionId);
+  if (session) return session;
+  const existing = await readSession(projectId);
+  if (existing) return existing;
+  return createActionSession(projectId, resumeId?.trim() || getMasterResumeId(projectId));
 }
 
 function readRedirectParams(redirectUrl: string): URLSearchParams {
@@ -167,8 +185,8 @@ async function drivePipeline(projectId: string, session: PipelineSession): Promi
 }
 
 export async function confirmEgressAction(projectId: string, sessionId: string, formData: FormData) {
-  const session = await readSession(projectId, sessionId);
-  if (!session) redirect(buildPipelineRedirect(projectId, "error", "session-not-found", sessionId));
+  const session = await readOrCreateActionSession(projectId, sessionId, String(formData.get("resumeId") ?? ""));
+  if (!session) redirect(buildPipelineRedirect(projectId, "error", "missing-resume", sessionId));
 
   const selectedItemIds = formData
     .getAll("egressItemId")
@@ -190,8 +208,15 @@ export async function confirmEgressAction(projectId: string, sessionId: string, 
   redirect(autoAdvance ? await drivePipeline(projectId, configured) : buildPipelineRedirect(projectId, "started", undefined, configured.id));
 }
 
+export async function startPipelineAction(projectId: string, resumeId: string) {
+  const existing = await readSession(projectId);
+  const session = existing?.resumeId === resumeId ? existing : await createActionSession(projectId, resumeId);
+  if (!session) redirect(buildPipelineRedirect(projectId, "error", "missing-resume"));
+  redirect(buildPipelineRedirect(projectId, "started", undefined, session.id));
+}
+
 export async function advancePipelineAction(projectId: string, sessionId: string) {
-  const session = await readSession(projectId, sessionId);
-  if (!session) redirect(buildPipelineRedirect(projectId, "error", "session-not-found", sessionId));
+  const session = await readOrCreateActionSession(projectId, sessionId);
+  if (!session) redirect(buildPipelineRedirect(projectId, "error", "missing-resume", sessionId));
   redirect(await drivePipeline(projectId, session));
 }

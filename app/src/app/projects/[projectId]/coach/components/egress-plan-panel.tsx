@@ -42,6 +42,7 @@ export function EgressPlanPanel(props: { session: PipelineSession }) {
       </div>
 
       <form action={action} className="mt-5 space-y-5">
+        <input type="hidden" name="resumeId" value={props.session.resumeId} />
         <div className="space-y-4">
           {groups.length > 0 ? groups.map((group) => (
             <section key={group.stage} className="rounded-xl border border-slate-200 bg-slate-50 p-4">

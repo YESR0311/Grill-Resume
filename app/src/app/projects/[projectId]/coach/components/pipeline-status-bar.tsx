@@ -1,3 +1,4 @@
+import { startPipelineAction } from "@/features/pipeline/actions";
 import { PIPELINE_STAGES, type PipelineSession, type PipelineStage, type PipelineStageStatus } from "@/features/pipeline";
 
 const stageLabels: Record<PipelineStage, string> = {
@@ -23,12 +24,33 @@ function statusClass(status: PipelineStageStatus): string {
   return "border-slate-200 bg-white text-slate-600";
 }
 
-export function PipelineStatusBar({ session }: { session: PipelineSession | null }) {
+function errorLabel(code: string): string {
+  if (code === "egress_pending") return "等待隐私与外发数据确认";
+  if (code === "missing-model-config") return "请先配置默认模型";
+  if (code === "missing-search-config") return "请先配置 Tavily 搜索";
+  if (code === "missing-resume") return "当前简历不可用，请回到材料页检查";
+  if (code === "stage-timeout") return "阶段执行超时，可稍后重试";
+  if (code === "missing-basics") return "导出前需要补齐基础信息";
+  return code;
+}
+
+export function PipelineStatusBar({ session, projectId, resumeId }: { session: PipelineSession | null; projectId: string; resumeId?: string }) {
   if (!session) {
+    const action = resumeId ? startPipelineAction.bind(null, projectId, resumeId) : undefined;
     return (
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-slate-900">Pipeline session</p>
-        <p className="mt-1 text-sm text-slate-500">暂无 pipeline session；进入批量隐私确认后会显示真实阶段状态。</p>
+        <p className="mt-1 text-sm text-slate-500">暂无 pipeline session；先创建 session，再进行批量隐私确认。</p>
+        <form action={action} className="mt-3">
+          <button
+            type="submit"
+            disabled={!resumeId}
+            className="rounded-full bg-slate-950 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            创建 pipeline session
+          </button>
+        </form>
+        {!resumeId ? <p className="mt-2 text-xs text-amber-700">当前项目没有 master resume，请先补充材料。</p> : null}
       </section>
     );
   }
@@ -48,13 +70,13 @@ export function PipelineStatusBar({ session }: { session: PipelineSession | null
         {PIPELINE_STAGES.map((stage, index) => {
           const state = session.stages[stage];
           return (
-            <li key={stage} className={`rounded-2xl border p-3 ${statusClass(state.status)}`}>
+            <li key={stage} aria-current={stage === session.currentStage ? "step" : undefined} className={`rounded-2xl border p-3 ${statusClass(state.status)}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-xs font-semibold ring-1 ring-current">{index + 1}</span>
                 <span className="text-xs font-medium">{statusLabels[state.status]}</span>
               </div>
               <p className="mt-3 font-medium">{stageLabels[stage]}</p>
-              {state.errorCode ? <p className="mt-1 text-xs">{state.errorCode}</p> : null}
+              {state.errorCode ? <p className="mt-1 text-xs">{errorLabel(state.errorCode)}</p> : null}
               {state.completedAt ? <p className="mt-1 text-xs opacity-70">{state.completedAt}</p> : null}
             </li>
           );
