@@ -176,7 +176,7 @@ const chatCompletionSchema = z.object({
   ),
 });
 
-const PROVIDER_TIMEOUT_MS = 20_000;
+const PROVIDER_TIMEOUT_MS = 30_000;
 
 function compactText(value: string | undefined | null, maxLength: number): string | undefined {
   const compacted = value?.replace(/\s+/g, " ").trim();
