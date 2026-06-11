@@ -32,6 +32,7 @@ external/**/.env_*
 # tooling
 .claude/
 .trellis/
+.codegraph/
 .mcp.json
 .playwright-mcp/
 *.log

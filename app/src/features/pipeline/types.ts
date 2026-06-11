@@ -22,6 +22,10 @@ export type PipelineStageStatus = z.infer<typeof pipelineStageStatusSchema>;
 
 export type StageStatus = PipelineStageStatus;
 
+export const GRILL_SUB_STAGES = ["intake", "deep-dive"] as const;
+
+export type GrillSubStage = (typeof GRILL_SUB_STAGES)[number];
+
 export const pipelineStageStateSchema = z.object({
   status: pipelineStageStatusSchema,
   enteredAt: z.string().optional(),
@@ -29,6 +33,7 @@ export const pipelineStageStateSchema = z.object({
   failedAt: z.string().optional(),
   errorCode: z.string().optional(),
   resultRef: z.string().optional(),
+  subStage: z.string().optional(),
 });
 
 export type PipelineStageState = z.infer<typeof pipelineStageStateSchema>;
@@ -81,6 +86,27 @@ export const autoAdvanceConfigSchema = z.object({
 
 export type AutoAdvanceConfig = z.infer<typeof autoAdvanceConfigSchema>;
 
+export const experienceValueRatingSchema = z.object({
+  experienceId: z.string(),
+  score: z.number().min(0).max(100),
+  tier: z.enum(["high", "medium", "low"]),
+  rationale: z.string(),
+  searchCitations: z.array(z.string()),
+});
+
+export type ExperienceValueRating = z.infer<typeof experienceValueRatingSchema>;
+
+export const evaluationSummarySchema = z.object({
+  schemaVersion: z.literal("eval-summary-v1"),
+  reportId: z.string(),
+  createdAt: z.string(),
+  experienceRatings: z.array(experienceValueRatingSchema),
+  jdMatchScore: z.number().min(0).max(100).optional(),
+  uncoveredKeywords: z.array(z.string()),
+});
+
+export type EvaluationSummary = z.infer<typeof evaluationSummarySchema>;
+
 export const pipelineSessionSchema = z.object({
   id: z.string(),
   projectId: z.string(),
@@ -93,6 +119,7 @@ export const pipelineSessionSchema = z.object({
   currentStage: pipelineStageSchema,
   checkpoints: z.array(pipelineCheckpointSchema),
   exportSnapshot: pipelineExportSnapshotSchema.optional(),
+  evaluationSummary: evaluationSummarySchema.optional(),
   completedAt: z.string().optional(),
 });
 
