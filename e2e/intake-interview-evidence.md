@@ -1,6 +1,6 @@
 # intake-interview-check 验收证据（B1）
 
-- 运行时间：2026-06-11T08:23:29.477Z
+- 运行时间：2026-06-11T09:02:21.311Z
 - 运行命令：`cd app && pnpm exec tsx --conditions=react-server scripts/intake-interview-check.ts`
 - 结果：全部通过（共 39 项断言）
 

@@ -41,6 +41,7 @@ export {
   saveSession,
   toggleAutoAdvance,
   updateSessionEgressPlan,
+  updateSessionEvaluationSummary,
   updateSessionStage,
   updateStageState,
 } from "./storage";

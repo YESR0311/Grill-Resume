@@ -7,9 +7,11 @@ import { getProjectDir, getProjectsRoot } from "@/lib/workspace";
 import {
   PIPELINE_STAGES,
   egressPlanSchema,
+  evaluationSummarySchema,
   pipelineCheckpointSchema,
   pipelineSessionSchema,
   type EgressPlan,
+  type EvaluationSummary,
   type PipelineCheckpoint,
   type PipelineSession,
   type PipelineStage,
@@ -246,6 +248,16 @@ export async function updateSessionEgressPlan(
     egressPlan: egressPlanSchema.parse(
       typeof nextPlan === "function" ? nextPlan(session.egressPlan, now) : nextPlan,
     ),
+  }));
+}
+
+export async function updateSessionEvaluationSummary(
+  sessionId: string,
+  summary: EvaluationSummary,
+): Promise<PipelineSession> {
+  return updateSession(sessionId, (session) => ({
+    ...session,
+    evaluationSummary: evaluationSummarySchema.parse(summary),
   }));
 }
 
