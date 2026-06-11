@@ -1,6 +1,6 @@
 # contracts-check 验收证据
 
-- 运行时间：2026-06-11T07:43:20.542Z
+- 运行时间：2026-06-11T08:23:29.996Z
 - 运行命令：`cd app && pnpm exec tsx scripts/contracts-check.ts`
 - 结果：全部通过（共 19 项断言）
 
