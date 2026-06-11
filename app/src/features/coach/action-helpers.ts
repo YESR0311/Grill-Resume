@@ -1073,3 +1073,96 @@ export async function executeCoachResearch(projectId: string, formData: FormData
   }
   return actionRedirect(`/projects/${project.id}/coach?researchStatus=provider&report=${report.id}`);
 }
+
+export type BatchApplyPolishItem = {
+  runId: string;
+  candidateId: string;
+  finalText?: string;
+};
+
+export type BatchApplyPolishResult = {
+  applied: Array<{ runId: string; candidateId: string; bulletId: string }>;
+  failed: Array<{ runId: string; candidateId: string; reason: string }>;
+};
+
+/**
+ * 批量应用润色候选：语义是「用户一次确认多个已选候选」，入参必须来自用户显式选择
+ * （调用方负责出示选择，函数侧只校验候选 status === "ready"）。
+ * 逐项隔离失败：单项失败记入 failed（每项自身已有回滚），继续处理其余项，不做跨项事务。
+ * 每项复用既有单条 apply 三步序列：append confirmed bullet → archive 原 bullet →
+ * writePolishRun applied；任一步失败 removeExperienceBullet 回滚（与 executeApplyPolish 同序列）。
+ */
+export async function executeBatchApplyPolish(
+  projectId: string,
+  resumeId: string,
+  items: BatchApplyPolishItem[],
+): Promise<BatchApplyPolishResult> {
+  const applied: BatchApplyPolishResult["applied"] = [];
+  const failed: BatchApplyPolishResult["failed"] = [];
+  if (items.length === 0) return { applied, failed };
+
+  const project = getProject(projectId);
+  if (!project) {
+    return {
+      applied,
+      failed: items.map((item) => ({ runId: item.runId, candidateId: item.candidateId, reason: "项目不存在" })),
+    };
+  }
+
+  const appliedSourceBulletIds = new Set<string>();
+  for (const item of items) {
+    try {
+      // 每项重新读盘：同一 run 重复出现时，第二项因候选已非 ready 自然落入 failed。
+      const run = await readPolishRun(project.id, resumeId, item.runId);
+      if (!run) throw new Error("润色记录不存在");
+      // 不同 run 指向同一原始 bullet 时，后到项直接失败：原始 bullet 已被本批归档，
+      // 继续应用会追加第二条新 bullet 而归档静默 no-op。
+      if (appliedSourceBulletIds.has(run.sourceBulletId)) throw new Error("该原始条目已在本批中应用");
+      const candidate = run.candidates.find((entry) => entry.id === item.candidateId && entry.status === "ready");
+      if (!candidate) throw new Error("候选不存在或已被处理");
+      const finalText = (item.finalText ?? candidate.text).trim();
+      if (!finalText) throw new Error("最终文本不能为空");
+
+      const bulletId = nanoid();
+      try {
+        await appendExperienceBullet({
+          projectId: project.id,
+          resumeId,
+          experienceId: run.experienceId,
+          bullet: {
+            id: bulletId,
+            text: finalText,
+            sourceEvidenceIds: run.sourceEvidenceIds,
+            polishCandidateId: candidate.id,
+            polishAppliedAt: new Date().toISOString(),
+          },
+        });
+        await archiveExperienceBullet({ projectId: project.id, resumeId, experienceId: run.experienceId, bulletId: run.sourceBulletId });
+        await writePolishRun({
+          ...run,
+          candidates: run.candidates.map((entry) => entry.id === item.candidateId ? { ...entry, status: "applied" } : entry),
+          appliedAt: new Date().toISOString(),
+          appliedCandidateId: item.candidateId,
+          appliedBulletId: bulletId,
+        });
+      } catch (error) {
+        try {
+          await removeExperienceBullet({ projectId: project.id, resumeId, experienceId: run.experienceId, bulletId });
+        } catch {
+          // 回滚自身失败不覆盖原始错误；新 bullet 可能残留，由原始错误对外定性
+        }
+        throw error instanceof Error ? error : new Error("应用润色失败");
+      }
+      appliedSourceBulletIds.add(run.sourceBulletId);
+      applied.push({ runId: item.runId, candidateId: item.candidateId, bulletId });
+    } catch (error) {
+      failed.push({
+        runId: item.runId,
+        candidateId: item.candidateId,
+        reason: error instanceof Error && error.message ? error.message : "应用润色失败",
+      });
+    }
+  }
+
+  return { applied, failed };
+}

@@ -17,6 +17,7 @@ export type PolishRun = {
   sourceBulletText: string;
   sourceEvidenceIds: string[];
   candidates: (PolishCandidate & { id: string; status: "ready" | "applied" | "discarded" })[];
+  valueTier?: "high" | "medium" | "low";
   createdAt: string;
   appliedAt?: string;
   appliedCandidateId?: string;
@@ -43,11 +44,20 @@ const polishRunSchema = z.object({
   sourceBulletText: z.string().trim().min(1).max(800),
   sourceEvidenceIds: z.array(z.string().trim().min(1)),
   candidates: z.array(candidateSchema).length(3),
+  valueTier: z.enum(["high", "medium", "low"]).optional(),
   createdAt: z.string().trim().min(1),
   appliedAt: z.string().trim().min(1).optional(),
   appliedCandidateId: z.string().trim().min(1).optional(),
   appliedBulletId: z.string().trim().min(1).optional(),
 });
+
+/** 原子写：临时文件 + rename，避免半截 JSON（与 pipeline/intake session 存储同惯例，私有实现）。 */
+async function atomicWriteJson(filePath: string, value: unknown): Promise<void> {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmpPath, JSON.stringify(value, null, 2), "utf-8");
+  await fs.rename(tmpPath, filePath);
+}
 
 function polishDir(resumeFilePath: string): string {
   return path.join(path.dirname(resumeFilePath), "polish");
@@ -72,6 +82,7 @@ export async function createPolishRun(input: {
   sourceBulletText: string;
   sourceEvidenceIds: string[];
   candidates: PolishCandidate[];
+  valueTier?: "high" | "medium" | "low";
 }): Promise<PolishRun> {
   const filePath = await resumeFilePath(input.projectId, input.resumeId);
   const now = new Date().toISOString();
@@ -85,11 +96,11 @@ export async function createPolishRun(input: {
     sourceBulletText: input.sourceBulletText,
     sourceEvidenceIds: input.sourceEvidenceIds,
     candidates: input.candidates.map((candidate) => ({ ...candidate, id: nanoid(), status: "ready" })),
+    ...(input.valueTier ? { valueTier: input.valueTier } : {}),
     createdAt: now,
   };
   const parsed = polishRunSchema.parse(run);
-  await fs.mkdir(polishDir(filePath), { recursive: true });
-  await fs.writeFile(polishPath(filePath, parsed.id), JSON.stringify(parsed, null, 2), "utf-8");
+  await atomicWriteJson(polishPath(filePath, parsed.id), parsed);
   return parsed;
 }
 
@@ -101,11 +112,19 @@ export async function listPolishRuns(projectId: string, resumeId: string): Promi
       entries
         .filter((entry) => entry.endsWith(".json"))
         .map(async (entry) => {
-          const json = JSON.parse(await fs.readFile(path.join(polishDir(filePath), entry), "utf-8"));
-          return polishRunSchema.parse(json);
+          // 坏文件 safeParse 失败直接跳过，不抛崩整张列表（与 intake session 存储同惯例）。
+          try {
+            const json = JSON.parse(await fs.readFile(path.join(polishDir(filePath), entry), "utf-8"));
+            const parsed = polishRunSchema.safeParse(json);
+            return parsed.success ? parsed.data : null;
+          } catch {
+            return null;
+          }
         }),
     );
-    return runs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return runs
+      .filter((run): run is PolishRun => run !== null)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   } catch {
     return [];
   }
@@ -125,5 +144,5 @@ export async function readPolishRun(projectId: string, resumeId: string, runId: 
 export async function writePolishRun(run: PolishRun): Promise<void> {
   const filePath = await resumeFilePath(run.projectId, run.resumeId);
   const parsed = polishRunSchema.parse(run);
-  await fs.writeFile(polishPath(filePath, parsed.id), JSON.stringify(parsed, null, 2), "utf-8");
+  await atomicWriteJson(polishPath(filePath, parsed.id), parsed);
 }

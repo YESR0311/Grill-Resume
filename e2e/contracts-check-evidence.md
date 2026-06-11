@@ -1,6 +1,6 @@
 # contracts-check 验收证据
 
-- 运行时间：2026-06-11T09:02:21.762Z
+- 运行时间：2026-06-11T09:53:32.494Z
 - 运行命令：`cd app && pnpm exec tsx scripts/contracts-check.ts`
 - 结果：全部通过（共 19 项断言）
 
@@ -19,7 +19,7 @@
 | B. shouldRunIntake 形态矩阵 | 仅有教育信息不影响判定 → intake | PASS |  |
 | C. 新字段前向形态 | stage state 携带 subStage parse 通过 | PASS |  |
 | C. 新字段前向形态 | stage state 不带 subStage 仍通过（旧形态） | PASS |  |
-| D. 旧 fixture 向后兼容 | 扩展后 schema parse 全部旧 session（11 个） | PASS |  |
+| D. 旧 fixture 向后兼容 | 扩展后 schema parse 全部旧 session（15 个） | PASS |  |
 | D. 旧 fixture 向后兼容 | .backend-coach-document.json 经 resumeDocumentSchema parse | PASS |  |
 | D. 旧 fixture 向后兼容 | .backend-coach-document.json shouldRunIntake 可运行且为 deep-dive | PASS |  |
 | D. 旧 fixture 向后兼容 | .backend-coach-document-2page.json 经 resumeDocumentSchema parse | PASS |  |

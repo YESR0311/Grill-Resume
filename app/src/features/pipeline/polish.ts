@@ -5,6 +5,7 @@ import { generatePolishCandidates } from "@/features/polish/generate";
 import { createPolishRun, listPolishRuns, type PolishRun } from "@/features/polish/store";
 import { getProjectResume } from "@/features/resume/storage";
 import type { ResumeDocument } from "@/features/resume/types";
+import type { EvaluationSummary } from "./types";
 
 export type PipelinePolishProgress = {
   eligibleBulletCount: number;
@@ -14,7 +15,7 @@ export type PipelinePolishProgress = {
   resolvedRunCount: number;
 };
 
-type EligibleBullet = {
+export type EligibleBullet = {
   experienceId: string;
   sourceBulletId: string;
   sourceBulletText: string;
@@ -84,9 +85,35 @@ function summarizePolishProgress(
   };
 }
 
+/**
+ * 按价值评级排序 eligible bullets：tier rank high=0 / medium=1 / low=2；
+ * 无 summary 或该 experienceId 无评级 → rank 1（medium 档）。
+ * 稳定排序：同 rank 保持入参原顺序（document.experiences 顺序），
+ * 保证 summary 为 undefined 时输出顺序与排序前完全一致。
+ */
+export function orderEligibleBulletsByValue(
+  bullets: EligibleBullet[],
+  summary?: EvaluationSummary,
+): EligibleBullet[] {
+  if (!summary) return [...bullets];
+  const tierRank: Record<"high" | "medium" | "low", number> = { high: 0, medium: 1, low: 2 };
+  const rankOf = (bullet: EligibleBullet): number => {
+    const rating = summary.experienceRatings.find((item) => item.experienceId === bullet.experienceId);
+    return rating ? tierRank[rating.tier] : 1;
+  };
+  return bullets
+    .map((bullet, index) => ({ bullet, rank: rankOf(bullet), index }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((item) => item.bullet);
+}
+
 export async function generateMissingPipelinePolishRuns(
   projectId: string,
   resumeId: string,
+  options?: {
+    evaluationSummary?: EvaluationSummary;
+    limit?: number;
+  },
 ): Promise<PipelinePolishProgress> {
   const current = await getProjectResume(projectId, resumeId);
   if (!current) {
@@ -101,16 +128,23 @@ export async function generateMissingPipelinePolishRuns(
   const bullets = eligibleBullets(current.document);
   const existingRuns = await listPolishRuns(projectId, resumeId);
   const existingBulletIds = new Set(existingRuns.map((run) => run.sourceBulletId));
+  const pendingBullets = orderEligibleBulletsByValue(bullets, options?.evaluationSummary).filter(
+    (bullet) => !existingBulletIds.has(bullet.sourceBulletId),
+  );
+  // limit 缺省不限；limit <= 0 视为 0（不生成，仅返回 progress）。靠 existingBulletIds 去重幂等续跑。
+  const limit = options?.limit === undefined ? pendingBullets.length : Math.max(0, options.limit);
   let generatedRunCount = 0;
 
-  for (const bullet of bullets) {
-    if (existingBulletIds.has(bullet.sourceBulletId)) continue;
+  for (const bullet of pendingBullets.slice(0, limit)) {
     const candidates = await generatePolishCandidates({
       config,
       sourceBullet: bullet.sourceBulletText,
       evidenceSnippets: bullet.evidenceSnippets,
       jdContext: current.document.target?.jdText || current.resume.targetJd,
     });
+    const rating = options?.evaluationSummary?.experienceRatings.find(
+      (item) => item.experienceId === bullet.experienceId,
+    );
     await createPolishRun({
       projectId,
       resumeId,
@@ -119,6 +153,7 @@ export async function generateMissingPipelinePolishRuns(
       sourceBulletText: bullet.sourceBulletText,
       sourceEvidenceIds: bullet.sourceEvidenceIds,
       candidates,
+      ...(rating ? { valueTier: rating.tier } : {}),
     });
     generatedRunCount += 1;
   }
