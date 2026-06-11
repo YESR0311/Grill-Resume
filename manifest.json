@@ -413,6 +413,107 @@
         ]
       },
       "lastReview": "2026-06-02"
+    },
+    {
+      "name": "vibe-resume",
+      "path": "Grill-Resume/external/vibe-resume",
+      "sourceUrl": "https://github.com/LiuMengxuan04/vibe-resume",
+      "license": "MIT",
+      "tracking": "vendored",
+      "lastUpstreamRef": "f98ed66 (2026-05-21)",
+      "writable": false,
+      "role": "vibe-coding resume: HTML+CSS as resume source file, AI as editor, Chromium screen-layout single-page PDF export with dynamic .page height measurement; bundled vibe-resume-editor skill",
+      "use": [
+        "Chromium export-pdf.mjs screen-layout PDF pipeline (avoids @media print drift)",
+        "web-as-source / PDF-as-build-artifact mental model",
+        "vibe-resume-editor SKILL.md prompt structure"
+      ],
+      "avoid": [
+        "treating single-static-HTML as data model; owned app keeps structured confirmed-evidence data as source of truth"
+      ],
+      "files": 16,
+      "sizeMB": 5,
+      "licenseStatus": "ok",
+      "sourceEvidence": "GitHub shallow clone at f98ed66; LICENSE, README, package.json checked locally",
+      "licenseEvidence": "Local LICENSE file: MIT (2026 VibeResume contributors); README badge MIT",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-06-11",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-06-11"
+    },
+    {
+      "name": "rendercv",
+      "path": "Grill-Resume/external/rendercv",
+      "sourceUrl": "https://github.com/rendercv/rendercv",
+      "license": "MIT",
+      "tracking": "vendored",
+      "lastUpstreamRef": "v2.8 (PyPI sdist; GitHub main was 1d4b87b on 2026-06-11)",
+      "vendoredScope": "PyPI sdist of rendercv 2.8 (core package + Typst themes, no docs/ images); GitHub codeload tarball download was too slow in this network to vendor the full repo",
+      "writable": false,
+      "role": "data-driven LaTeX/Typst resume pipeline: structured YAML schema -> Typst (v2; v1 used LaTeX via Jinja2+TinyTeX) -> deterministic PDF; Pydantic data model, multiple themes, version-controllable CV",
+      "use": [
+        "YAML/Pydantic resume schema design as mapping target for owned confirmed-evidence data",
+        "Typst/LaTeX rendering pipeline architecture for a future professional PDF export",
+        "theme/design-options separation pattern"
+      ],
+      "avoid": [
+        "wholesale dependency on Python runtime inside the Next.js app; evaluate Typst CLI or JS bindings first",
+        "assuming CJK support works out of the box; Chinese font handling must be verified before adoption"
+      ],
+      "files": 157,
+      "sizeMB": 2,
+      "licenseStatus": "ok",
+      "sourceEvidence": "PyPI sdist rendercv-2.8.tar.gz (files.pythonhosted.org); pyproject.toml and bundled LICENSE checked locally; GitHub LICENSE also checked via raw.githubusercontent",
+      "licenseEvidence": "pyproject.toml: license = MIT; src/rendercv/renderer/rendercv_typst/LICENSE present; GitHub LICENSE: MIT (c) 2023 to present Sina Atalay and individual contributors",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-06-11",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-06-11"
+    },
+    {
+      "name": "billryan-resume",
+      "path": "Grill-Resume/external/billryan-resume",
+      "sourceUrl": "https://github.com/billryan/resume",
+      "license": "MIT",
+      "tracking": "vendored",
+      "lastUpstreamRef": "eadc395 (2021-09-05)",
+      "writable": false,
+      "role": "elegant Chinese/English LaTeX resume template: xelatex + zh_CN Adobe/Fandol font variants, moderncv-style section macros, Makefile build, one-page Chinese resume layout reference",
+      "use": [
+        "Chinese LaTeX typography reference (fonts, spacing, section layout) for a future LaTeX/Typst export",
+        "resume.cls/resume-zh docclass structure as template vocabulary",
+        "Makefile xelatex build flow"
+      ],
+      "avoid": [
+        "treating as active upstream; last commit 2021, vendored as static template reference only"
+      ],
+      "files": 28,
+      "sizeMB": 2,
+      "licenseStatus": "ok",
+      "sourceEvidence": "GitHub tarball snapshot at eadc395; LICENSE and README checked locally",
+      "licenseEvidence": "Local LICENSE file: The MIT License (MIT)",
+      "secretScan": {
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "date": "2026-06-11",
+            "findings": 0
+          }
+        ]
+      },
+      "lastReview": "2026-06-11"
     }
   ],
   "licenseGate": {
@@ -426,7 +527,10 @@
       "starry",
       "deep-interview-omc",
       "html-anything",
-      "JobPilot"
+      "JobPilot",
+      "vibe-resume",
+      "rendercv",
+      "billryan-resume"
     ],
     "needsReview": [
       "zineyu-resume",
