@@ -11,7 +11,7 @@ import { getActivePendingDraft, getActivePendingDraftForEvidence, hasPendingDraf
 import { analyzeJdCoverage, type JdCoverageResult } from "@/features/coach/jd-coverage";
 import { getProject, listResumes, readResume } from "@/features/resume/storage";
 import type { ResumeDocument, ResumeRecord } from "@/features/resume/types";
-import { EvidenceBulletDraftPanel, isEligibleEvidence, type EvidenceBulletDraftItem } from "./components/bullet-section"; import { EgressPlanPanel } from "./components/egress-plan-panel"; import { GrillSection } from "./components/grill-section";
+import { EvidenceBulletDraftPanel, isEligibleEvidence, type EvidenceBulletDraftItem } from "./components/bullet-section"; import { EgressPlanPanel } from "./components/egress-plan-panel"; import { EvaluationReportPanel, buildEvaluationReportView } from "./components/evaluation-report-panel"; import { GrillSection } from "./components/grill-section";
 import { MetricsDashboard, buildBuilderSnapshot, buildBuilderWorkbenchSummary, buildCoachMetrics } from "./components/metrics-dashboard";
 import { PipelineStatusBar } from "./components/pipeline-status-bar"; import { ResearchSection } from "./components/research-section";
 import { getSession as getPipelineSession } from "@/features/pipeline/storage";
@@ -646,6 +646,12 @@ export default async function CoachPage({ params, searchParams }: Props) {
             </section>
           </div>
         </details>
+        <EvaluationReportPanel
+          view={buildEvaluationReportView({
+            summary: pipelineSession?.evaluationSummary,
+            experiences: experienceOptions,
+          })}
+        />
         {pipelineSession && !pipelineSession.egressPlan.userConfirmedAt && !pipelineSession.egressPlan.allConfirmedAt ? <EgressPlanPanel session={pipelineSession} /> : null}
         <MetricsDashboard projectId={project.id} metrics={coachMetrics} snapshot={builderSnapshot} summary={builderSummary} />
         <GrillSection
