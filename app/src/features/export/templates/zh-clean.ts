@@ -27,9 +27,12 @@ const WHITE = "FFFFFF";
 
 type DocxRenderContext = {
   fontCJK: string;
+  fontCJKHeading: string;
   fontLatin: string;
   accentColor: string;
   baseSize: number;
+  headingSize: number;
+  headingBefore: number;
   line: number;
 };
 
@@ -49,20 +52,27 @@ function docxColor(value: string | undefined, fallback: string): string {
 function context(schema: LayoutSchema): DocxRenderContext {
   return {
     fontCJK: schema.theme.fontCJK,
+    fontCJKHeading: schema.theme.fontCJKHeading ?? schema.theme.fontCJK,
     fontLatin: schema.theme.fontLatin,
     accentColor: docxColor(schema.theme.accentColor, TEAL),
     baseSize: Math.round(schema.theme.baseFontPt * 2),
+    headingSize: typeof schema.theme.headingFontPt === "number" ? Math.round(schema.theme.headingFontPt * 2) : 22,
+    headingBefore: typeof schema.theme.sectionSpacingPt === "number" ? Math.round(schema.theme.sectionSpacingPt * 20) : 210,
     line: Math.round(schema.theme.lineSpacing * 240),
   };
 }
 
-function run(ctx: DocxRenderContext, text: string, options: { bold?: boolean; size?: number; color?: string } = {}): TextRun {
+function mmToTwips(mm: number): number {
+  return Math.round((mm / 25.4) * 1440);
+}
+
+function run(ctx: DocxRenderContext, text: string, options: { bold?: boolean; size?: number; color?: string; eastAsia?: string } = {}): TextRun {
   return new TextRun({
     text,
     bold: options.bold,
     size: options.size ?? ctx.baseSize,
     color: options.color ?? DARK,
-    font: { ascii: ctx.fontLatin, eastAsia: ctx.fontCJK },
+    font: { ascii: ctx.fontLatin, eastAsia: options.eastAsia ?? ctx.fontCJK },
   });
 }
 
@@ -124,7 +134,7 @@ function headerBlock(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind:
     new TableRow({
       children: [
         cell([
-          multi(ctx, [run(ctx, block.name, { bold: true, size: 42, color: WHITE }), run(ctx, `  ${block.targetRole ?? "目标岗位"}`, { size: 22, color: "D7ECEE" })], { after: 70 }),
+          multi(ctx, [run(ctx, block.name, { bold: true, size: 42, color: WHITE, eastAsia: ctx.fontCJKHeading }), run(ctx, `  ${block.targetRole ?? "目标岗位"}`, { size: 22, color: "D7ECEE" })], { after: 70 }),
           ...(block.metaLines.length > 0 ? [paragraph(ctx, block.metaLines.join("｜"), { color: WHITE, after: 44 })] : []),
           ...(block.contacts.length > 0 ? [paragraph(ctx, block.contacts.join("｜"), { color: WHITE, after: 0 })] : []),
         ], { width: 76, fill: NAVY }),
@@ -141,11 +151,11 @@ function headerBlock(ctx: DocxRenderContext, block: Extract<LayoutBlock, { kind:
 function heading(ctx: DocxRenderContext, en: string | undefined, cn: string): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
-    spacing: { before: 210, after: 90 },
+    spacing: { before: ctx.headingBefore, after: 90 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: LINE } },
     children: [
-      ...(en ? [run(ctx, en, { bold: true, size: 22, color: NAVY })] : []),
-      run(ctx, en ? `  ${cn}` : cn, { bold: true, size: 22, color: ctx.accentColor }),
+      ...(en ? [run(ctx, en, { bold: true, size: ctx.headingSize, color: NAVY, eastAsia: ctx.fontCJKHeading })] : []),
+      run(ctx, en ? `  ${cn}` : cn, { bold: true, size: ctx.headingSize, color: ctx.accentColor, eastAsia: ctx.fontCJKHeading }),
     ],
   });
 }
@@ -217,7 +227,21 @@ export async function buildZhCleanDocx(schema: LayoutSchema, footer?: string): P
   const doc = new Document({
     creator: "Resume Coach",
     title: documentTitle(schema),
-    sections: [{ properties: { page: { margin: { top: 560, right: 560, bottom: 560, left: 560 } } }, children }],
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: {
+              top: mmToTwips(schema.page.marginsMm.top),
+              right: mmToTwips(schema.page.marginsMm.right),
+              bottom: mmToTwips(schema.page.marginsMm.bottom),
+              left: mmToTwips(schema.page.marginsMm.left),
+            },
+          },
+        },
+        children,
+      },
+    ],
   });
   return await Packer.toBuffer(doc);
 }

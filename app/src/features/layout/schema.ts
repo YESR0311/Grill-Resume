@@ -4,6 +4,12 @@ export type LayoutTheme = {
   accentColor: string;
   baseFontPt: number;
   lineSpacing: number;
+  /** 标题中文字体；缺省回落 fontCJK。 */
+  fontCJKHeading?: string;
+  /** section 标题字号（pt）；缺省维持 zh-clean 现硬编码 11pt。 */
+  headingFontPt?: number;
+  /** section 标题前距（pt）；缺省维持现硬编码 210 twips（10.5pt）。 */
+  sectionSpacingPt?: number;
 };
 
 export type LayoutPage = {

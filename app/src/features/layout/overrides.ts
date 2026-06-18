@@ -64,6 +64,12 @@ function themeOverride(value: unknown): Partial<LayoutTheme> | undefined {
   if (typeof baseFontPt === "number") out.baseFontPt = baseFontPt;
   const lineSpacing = clampNumber(input.lineSpacing, 1, 1.6);
   if (typeof lineSpacing === "number") out.lineSpacing = lineSpacing;
+  const fontCJKHeading = typeof input.fontCJKHeading === "string" ? input.fontCJKHeading.trim() : undefined;
+  if (hasText(fontCJKHeading) && fontCJKHeading.length <= 120) out.fontCJKHeading = fontCJKHeading;
+  const headingFontPt = clampNumber(input.headingFontPt, 8, 22);
+  if (typeof headingFontPt === "number") out.headingFontPt = headingFontPt;
+  const sectionSpacingPt = clampNumber(input.sectionSpacingPt, 0, 30);
+  if (typeof sectionSpacingPt === "number") out.sectionSpacingPt = sectionSpacingPt;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

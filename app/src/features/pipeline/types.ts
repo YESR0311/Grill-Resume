@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { DocxGapReport } from "@/features/export/gap-report";
+import type { FitDecision } from "@/features/layout/adapter";
 import type { LayoutSchema } from "@/features/layout/schema";
 
 export const PIPELINE_STAGES = ["grill", "evaluate", "polish", "export"] as const;
@@ -75,6 +76,7 @@ export const pipelineExportSnapshotSchema = z.object({
   layoutSchema: z.custom<LayoutSchema>((value) => Boolean(value && typeof value === "object")),
   gapReport: z.custom<DocxGapReport>((value) => Boolean(value && typeof value === "object")),
   readyForExport: z.boolean(),
+  fitDecisions: z.custom<FitDecision[]>((value) => Array.isArray(value)).optional(),
 });
 
 export type PipelineExportSnapshot = z.infer<typeof pipelineExportSnapshotSchema>;
