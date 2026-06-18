@@ -49,7 +49,7 @@ export function ThemeEditor({
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-slate-400">预设仅套用字体/字号/行距；页边距暂未接入导出。</p>
+          <p className="mt-2 text-[11px] leading-4 text-slate-400">切换预设会同时套用字体/字号/行距与页边距；手动微调字体/颜色不影响页边距。</p>
         </section>
 
         <section className="space-y-3">

@@ -1,4 +1,5 @@
 import type { LayoutBlock, LayoutSchema, LayoutTheme } from "./schema";
+import { getLayoutThemePreset, type LayoutThemePreset } from "./themes";
 
 export const LAYOUT_OVERRIDES_VERSION = "layout-overrides-v1" as const;
 
@@ -8,6 +9,12 @@ export type LayoutOverrides = {
   blockOrder?: string[];
   hiddenBlocks?: string[];
   theme?: Partial<LayoutTheme>;
+  // F6：主题预设 id，跨路径（编辑器预览 / 手动导出 / pipeline 导出）注入 page.marginsMm 的
+  // 唯一持久化载体。仅 enum，远轻于完整 margins 对象。
+  // 语义边界：此字段是「边距锚点」，不是「theme 完全等于该预设」的断言——套预设后手调字体/颜色
+  // （updateTheme）会改 theme 但保留 themePresetId，使边距仍锁定所选布局密度（直觉一致）。
+  // 消费方勿据此推断 theme 仍等于预设；若要「当前激活预设」高亮，需另行比对 theme 内容。
+  themePresetId?: LayoutThemePreset["id"];
   bulletOverrides?: Record<string, string>;
   updatedAt?: string;
 };
@@ -54,9 +61,9 @@ function themeOverride(value: unknown): Partial<LayoutTheme> | undefined {
   const input = value as Partial<Record<keyof LayoutTheme, unknown>>;
   const out: Partial<LayoutTheme> = {};
   const fontCJK = typeof input.fontCJK === "string" ? input.fontCJK.trim() : undefined;
-  if (hasText(fontCJK)) out.fontCJK = fontCJK;
+  if (hasText(fontCJK) && fontCJK.length <= 120) out.fontCJK = fontCJK;
   const fontLatin = typeof input.fontLatin === "string" ? input.fontLatin.trim() : undefined;
-  if (hasText(fontLatin)) out.fontLatin = fontLatin;
+  if (hasText(fontLatin) && fontLatin.length <= 120) out.fontLatin = fontLatin;
   if (typeof input.accentColor === "string" && /^#[0-9a-fA-F]{6}$/.test(input.accentColor.trim())) {
     out.accentColor = input.accentColor.trim();
   }
@@ -71,6 +78,16 @@ function themeOverride(value: unknown): Partial<LayoutTheme> | undefined {
   const sectionSpacingPt = clampNumber(input.sectionSpacingPt, 0, 30);
   if (typeof sectionSpacingPt === "number") out.sectionSpacingPt = sectionSpacingPt;
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * F6：主题预设 id 白名单校验（纯函数，闭网可测；export 供验收脚本直接断言，src 内仅经
+ * normalizeLayoutOverrides 间接使用）。白名单 = SSoT layoutThemePresets，新增预设自动纳入，
+ * 无需同步维护字面量（避免类型扩展后硬编码漏判）。非字符串 / 未命中 → undefined，投影回默认边距。
+ */
+export function normalizeThemePresetId(value: unknown): LayoutThemePreset["id"] | undefined {
+  if (typeof value !== "string") return undefined;
+  return getLayoutThemePreset(value)?.id;
 }
 
 export function createDefaultLayoutOverrides(resumeId: string): LayoutOverrides {
@@ -94,6 +111,8 @@ export function normalizeLayoutOverrides(value: unknown, resumeId: string): Layo
   if (hiddenBlocks) normalized.hiddenBlocks = hiddenBlocks;
   const theme = themeOverride(input.theme);
   if (theme) normalized.theme = theme;
+  const themePresetId = normalizeThemePresetId(input.themePresetId);
+  if (themePresetId) normalized.themePresetId = themePresetId;
   const bulletOverrides = stringRecord(input.bulletOverrides);
   if (bulletOverrides) normalized.bulletOverrides = bulletOverrides;
   if (hasText(input.updatedAt)) normalized.updatedAt = input.updatedAt.trim();
@@ -152,8 +171,14 @@ export function applyLayoutOverrides(schema: LayoutSchema, overrides?: LayoutOve
   const blocks = orderedLayoutBlocks(schema, overrides)
     .filter((item) => !item.hidden)
     .map((item) => applyBulletOverrides(item.block, overrides.bulletOverrides));
+  // F6：所选预设若带 marginsMm（classic/compact）则覆盖页边距；clean 无 marginsMm、
+  // 无 themePresetId、非法值均回默认边距。浅拷贝产新 page，不改输入 schema。
+  const presetMargins = overrides.themePresetId
+    ? getLayoutThemePreset(overrides.themePresetId)?.marginsMm
+    : undefined;
   return {
     ...schema,
+    page: presetMargins ? { ...schema.page, marginsMm: presetMargins } : schema.page,
     theme: {
       ...schema.theme,
       ...overrides.theme,

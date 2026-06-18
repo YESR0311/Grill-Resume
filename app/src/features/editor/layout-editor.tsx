@@ -114,6 +114,8 @@ export function LayoutEditor({
     setOverrides((current) => updater(current));
   }
 
+  // 手调单个 theme 字段：经 ...current 有意保留 themePresetId（边距锚点不随字体微调改变；
+  // 与 theme-editor 提示「手动微调字体/颜色不影响页边距」一致）。重置才清 presetId（resetTheme）。
   function updateTheme<K extends keyof LayoutTheme>(key: K, value: LayoutTheme[K]): void {
     updateOverrides((current) => ({
       ...current,
@@ -128,6 +130,7 @@ export function LayoutEditor({
     updateOverrides((current) => {
       const next: LayoutOverrides = { ...current };
       delete next.theme;
+      delete next.themePresetId; // F6：重置回默认字体 + 默认边距
       return next;
     });
   }

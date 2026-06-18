@@ -2,7 +2,8 @@
 // 消费 B4 themes.ts 的 layoutThemePresets（SSoT），供 theme-editor / layout-editor 展示与套用。
 //
 // 设计约束（已与用户确认）：
-// - 不接 preset.marginsMm（LayoutOverrides 无 margins 字段；B4 明确不扩持久化 schema）。
+// - F6：套用预设记录 themePresetId（轻量 enum 载体），由 applyLayoutOverrides 注入 page.marginsMm；
+//   不往 overrides 加完整 margins 对象。
 // - 套用预设 = 整体替换 overrides.theme（空 theme → 删字段，回投影默认），不残留先前手调字段。
 
 import type { LayoutOverrides } from "@/features/layout/overrides";
@@ -26,13 +27,15 @@ export function summarizeThemePreset(preset: LayoutThemePreset): string[] {
 }
 
 /**
- * 整体替换 overrides.theme = preset.theme（浅拷贝产新对象，不改输入）。
- * 空 theme（clean）→ 删除 theme 字段，回投影默认。
- * 仅动 theme：blockOrder / hiddenBlocks / bulletOverrides / version / resumeId 原样保留。
+ * 整体替换 overrides.theme = preset.theme，并记录 themePresetId（F6 注入 margins 的载体）。
+ * 浅拷贝产新对象，不改输入。空 theme（clean）→ 删除 theme 字段回投影默认，但 themePresetId
+ * 仍记 "clean"（clean preset 无 marginsMm 字段 → 注入时 getLayoutThemePreset 返回 undefined，
+ * page 不变回默认边距，行为自洽）。
+ * 仅动 theme + themePresetId：blockOrder / hiddenBlocks / bulletOverrides / version / resumeId 原样保留。
  */
 export function applyPresetToOverrides(overrides: LayoutOverrides, preset: LayoutThemePreset): LayoutOverrides {
   const theme: Partial<LayoutTheme> = { ...preset.theme };
-  const next: LayoutOverrides = { ...overrides };
+  const next: LayoutOverrides = { ...overrides, themePresetId: preset.id };
   if (Object.keys(theme).length > 0) next.theme = theme;
   else delete next.theme;
   return next;
