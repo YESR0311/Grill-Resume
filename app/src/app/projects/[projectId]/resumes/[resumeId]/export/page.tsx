@@ -1,11 +1,28 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { buildFitExplanation } from "@/features/coach/fit-explanation-view";
 import { renderExport } from "@/features/export/render";
+import { project as projectLayout } from "@/features/layout/project";
 import { readSession as readPipelineSession } from "@/features/pipeline/storage";
 import { createExportRecord, getProject, getProjectResume, listExports, readLayoutOverrides } from "@/features/resume/storage";
 import type { ExportFormat } from "@/features/resume/types";
 
 export const dynamic = "force-dynamic";
+
+// 单页适配档位展示（F4）：沿用 tier 颜色约定（high=emerald / medium=sky / low=amber / unrated=slate）。
+// 注意此处用 FitDecision 的 "unrated"（非 F2 polish-runs-view 的 "untiered"），不强行统一 B4 类型命名。
+const fitTierClass: Record<"high" | "medium" | "low" | "unrated", string> = {
+  high: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  medium: "border-sky-200 bg-sky-50 text-sky-700",
+  low: "border-amber-200 bg-amber-50 text-amber-700",
+  unrated: "border-slate-200 bg-slate-50 text-slate-600",
+};
+const fitTierLabel: Record<"high" | "medium" | "low" | "unrated", string> = {
+  high: "高价值",
+  medium: "中等",
+  low: "待补强",
+  unrated: "未评级",
+};
 
 type Props = {
   params: Promise<{ projectId: string; resumeId: string }>;
@@ -65,6 +82,20 @@ export default async function ResumeExportPage({ params, searchParams }: Props) 
   const { resume, document } = current;
   const pipelineSession = query.session ? await readPipelineSession(project.id, query.session) : null;
   const pipelineSnapshot = pipelineSession?.resumeId === resume.id ? pipelineSession.exportSnapshot : undefined;
+
+  // 单页适配说明（F4）：仅当 snapshot 带非空 fitDecisions 时计算。
+  // 重新 projectLayout 拿未裁剪全集 blocks，使 hide-block 的块名也能还原（snapshot.layoutSchema 是裁剪后的）。
+  const fitDecisions = pipelineSnapshot?.fitDecisions;
+  const fitExplanation =
+    fitDecisions && fitDecisions.length > 0
+      ? buildFitExplanation({
+          decisions: fitDecisions,
+          // 拿未裁剪全集 blocks 还原块名（含被 hide-block 隐藏的）。overrides 只改 blockOrder/hiddenBlocks/theme/bullet 覆盖，
+          // 不影响 block 的 id/org/role/name，且全集 ⊇ 任何带 overrides 的子集 ⊇ fitDecision 的 blockId，故无需读 overrides，省一次 IO。
+          blocks: projectLayout(document).schema.blocks,
+        })
+      : null;
+
   const exports = listExports(resume.id);
   const formats: ExportFormat[] = ["docx-zh-clean", "json-resume", "docx-ats", "docx-visual", "pdf"];
 
@@ -129,6 +160,32 @@ export default async function ResumeExportPage({ params, searchParams }: Props) 
             <p className="mt-5 text-sm text-slate-500">暂无导出记录。</p>
           )}
         </section>
+
+        {fitExplanation ? (
+          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-xl font-semibold">单页适配说明</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              为把简历压进单页，本次导出裁剪了 {fitExplanation.trimmedBulletTotal} 条要点、隐藏了 {fitExplanation.hiddenBlockTotal} 个板块。
+              被压缩的内容仍保留在简历数据中，只是不进入本次单页导出文件。
+            </p>
+            <ul className="mt-5 space-y-3">
+              {fitExplanation.items.map((item) => (
+                <li
+                  key={`${item.action}:${item.blockId}`}
+                  className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm text-slate-600"
+                >
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                    {item.action === "hide-block" ? "隐藏板块" : `裁剪要点 ×${item.removedCount}`}
+                  </span>
+                  <span className="font-medium text-slate-900">{item.blockLabel}</span>
+                  <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${fitTierClass[item.tier]}`}>
+                    {fitTierLabel[item.tier]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h2 className="text-xl font-semibold">导出摘要</h2>
