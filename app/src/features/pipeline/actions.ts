@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { CoachActionRedirect, executeGrillEnhancement, executeSearchEvaluation } from "@/features/coach/action-helpers";
+import { CoachActionRedirect, executeGrillEnhancement, executePipelineEvaluation } from "@/features/coach/action-helpers";
 import { generateMissingPipelinePolishRuns } from "./polish";
 import { buildPipelineExportSnapshot } from "./pipeline-exporter";
 import { advanceStage, canAdvance, confirmEgress, setAutoAdvance } from "./orchestrator";
@@ -93,7 +93,7 @@ async function executePipelineStage(projectId: string, session: PipelineSession)
 
   if (stage === "evaluate") {
     try {
-      await withStageTimeout(executeSearchEvaluation(projectId, buildPrivacyFormData()));
+      await withStageTimeout(executePipelineEvaluation(projectId, session.id, buildPrivacyFormData()));
       return { ok: false, redirect: buildPipelineRedirect(projectId, "failed", "stage-returned-without-redirect", session.id), code: "stage-returned-without-redirect" };
     } catch (error) {
       if (error instanceof CoachActionRedirect) return parseStageRedirect(stage, error.result.redirect);
@@ -104,7 +104,11 @@ async function executePipelineStage(projectId: string, session: PipelineSession)
 
   if (stage === "polish") {
     try {
-      const progress = await withStageTimeout(generateMissingPipelinePolishRuns(projectId, session.resumeId));
+      const progress = await withStageTimeout(
+        generateMissingPipelinePolishRuns(projectId, session.resumeId, {
+          evaluationSummary: session.evaluationSummary,
+        }),
+      );
       return {
         ok: true,
         redirect: `/projects/${projectId}/coach/polish?pipeline=polish-generated&session=${session.id}`,
@@ -124,6 +128,7 @@ async function executePipelineStage(projectId: string, session: PipelineSession)
     projectId,
     resumeId: session.resumeId,
     document: current.document,
+    options: { evaluationSummary: session.evaluationSummary, singlePage: true },
   });
   return {
     ok: true,

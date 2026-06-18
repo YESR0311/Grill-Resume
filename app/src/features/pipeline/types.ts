@@ -90,7 +90,7 @@ export type AutoAdvanceConfig = z.infer<typeof autoAdvanceConfigSchema>;
 
 export const experienceValueRatingSchema = z.object({
   experienceId: z.string(),
-  score: z.number().min(0).max(100),
+  score: z.number().int().min(0).max(100),
   tier: z.enum(["high", "medium", "low"]),
   rationale: z.string(),
   searchCitations: z.array(z.string()),
@@ -103,7 +103,7 @@ export const evaluationSummarySchema = z.object({
   reportId: z.string(),
   createdAt: z.string(),
   experienceRatings: z.array(experienceValueRatingSchema),
-  jdMatchScore: z.number().min(0).max(100).optional(),
+  jdMatchScore: z.number().int().min(0).max(100).optional(),
   uncoveredKeywords: z.array(z.string()),
 });
 

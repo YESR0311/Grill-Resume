@@ -45,9 +45,9 @@ import {
   removeExperienceEvidence,
 } from "@/features/resume/storage";
 import { getActiveSearchProvider, SearchProviderError } from "@/features/search";
-import { analyzeJdCoverage, augmentJdCoverageWithSearch } from "@/features/coach/jd-coverage";
-import { evaluateSkillScarcity } from "@/features/coach/skill-scarcity";
-import { verifyCompaniesAndProjects } from "@/features/coach/company-verify";
+import { buildResearchFindings, runEvaluationResearch } from "@/features/coach/evaluation-research";
+import { synthesizeEvaluationSummary } from "@/features/evaluation";
+import { updateSessionEvaluationSummary } from "@/features/pipeline/storage";
 import { buildGrillSession } from "@/features/coach/conversation/engine";
 import { buildGrillEnhancement } from "@/features/coach/conversation/llm-enhance";
 import { buildExperienceQuestionQueue } from "@/features/coach/questions";
@@ -55,8 +55,6 @@ import { nanoid } from "nanoid";
 import { generatePolishCandidates } from "@/features/polish/generate";
 import { createPolishRun, readPolishRun, writePolishRun } from "@/features/polish/store";
 import type { ResumeDocument, ResumeRecord } from "@/features/resume/types";
-
-const COACH_SEARCH_TIMEOUT_MS = 12_000;
 
 export type ActionResult =
   | { ok: true; redirect: string; data?: unknown }
@@ -866,65 +864,10 @@ export async function executeSearchEvaluation(projectId: string, formData: FormD
     return actionRedirect(buildSearchErrorRedirect(project.id, code));
   }
 
-  const search = async (query: string) => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const timedOut = new Promise<never>((_, reject) => {
-      timeout = setTimeout(() => reject(new SearchProviderError("request-failed", "search timeout")), COACH_SEARCH_TIMEOUT_MS);
-    });
-    try {
-      return await Promise.race([provider.query({ query, maxResults: 3 }), timedOut]);
-    } finally {
-      if (timeout) clearTimeout(timeout);
-    }
-  };
   let findings: CoachResearchFinding[];
   try {
-    const [scarcity, verification, jdCoverage] = await Promise.all([
-      evaluateSkillScarcity({ document, search }),
-      verifyCompaniesAndProjects({ document, search }),
-      augmentJdCoverageWithSearch(analyzeJdCoverage(document), provider),
-    ]);
-    const jdFindings: CoachResearchFinding[] = jdCoverage.status === "ok"
-      ? Object.entries(jdCoverage.webCitations ?? {}).map(([keyword, citations]) => ({
-          id: nanoid(),
-          kind: "research_fact",
-          text: `${keyword}：JD uncovered keyword has web demand signals`,
-          source: "web",
-          sourceLabel: "Tavily JD coverage",
-          sourceUrl: citations[0]?.url,
-          citations,
-          confidence: citations.some((citation) => citation.host) ? "medium" : "low",
-          canEnterResume: false,
-          confirmationStatus: "unconfirmed",
-        }))
-      : [];
-    findings = [
-      ...jdFindings,
-      ...scarcity.map((item): CoachResearchFinding => ({
-        id: nanoid(),
-        kind: "research_fact",
-        text: `${item.skill}：${item.level}`,
-        source: item.citations.length > 0 ? "web" : "resume",
-        sourceLabel: "Tavily skill scarcity",
-        sourceUrl: item.citations[0]?.url,
-        citations: item.citations.map((citation) => ({ title: citation.title, url: citation.url, snippet: citation.snippet, retrievedAt: citation.retrievedAt })),
-        confidence: item.level === "high-demand" ? "high" : item.level === "moderate-demand" ? "medium" : "low",
-        canEnterResume: false,
-        confirmationStatus: "unconfirmed",
-      })),
-      ...verification.map((item): CoachResearchFinding => ({
-        id: nanoid(),
-        kind: "research_fact",
-        text: `${item.label}：${item.status}`,
-        source: item.citations.length > 0 ? "web" : "resume",
-        sourceLabel: item.source === "experience" ? "Tavily company verify" : "Tavily project verify",
-        sourceUrl: item.citations[0]?.url,
-        citations: item.citations.map((citation) => ({ title: citation.title, url: citation.url, snippet: citation.snippet, retrievedAt: citation.retrievedAt })),
-        confidence: item.status === "verified" ? "high" : item.status === "partial" ? "medium" : "low",
-        canEnterResume: false,
-        confirmationStatus: "unconfirmed",
-      })),
-    ];
+    const raw = await runEvaluationResearch({ document, provider });
+    findings = buildResearchFindings(raw);
   } catch {
     return actionRedirect(buildSearchErrorRedirect(project.id, "search-unavailable"));
   }
@@ -942,6 +885,80 @@ export async function executeSearchEvaluation(projectId: string, formData: FormD
   } catch {
     return actionRedirect(buildSearchErrorRedirect(project.id, "report-persist-failed"));
   }
+  return actionRedirect(`/projects/${project.id}/coach?researchStatus=provider&report=${report.id}`);
+}
+
+/**
+ * pipeline evaluate 段编排入口（与 executeSearchEvaluation 同构，末尾 actionRedirect 抛 CoachActionRedirect）：
+ * 复用共享三路 helper 单次搜索 → createCoachResearchReport 拿 report.id →
+ * synthesizeEvaluationSummary（config=null 走规则降级，离线必可用）→ updateSessionEvaluationSummary
+ * 写 session.evaluationSummary → 与 executeSearchEvaluation 同样的 redirect 契约。
+ * 关注点分离：coach 手工研究继续走 executeSearchEvaluation（不写 session、不 synthesize）。
+ */
+export async function executePipelineEvaluation(projectId: string, sessionId: string, formData: FormData): Promise<never> {
+  const project = getProject(projectId);
+  if (!project) return actionRedirect(buildSearchErrorRedirect(projectId, "missing-project"));
+  if (!privacyConfirmed(formData)) return actionRedirect(buildSearchErrorRedirect(project.id, "privacy-not-confirmed"));
+
+  const master = firstResume(listResumes(project.id), "master");
+  if (!master) return actionRedirect(buildSearchErrorRedirect(project.id, "missing-resume"));
+
+  let document: ResumeDocument;
+  try {
+    document = await readResume(master.filePath);
+  } catch {
+    return actionRedirect(buildSearchErrorRedirect(project.id, "resume-read-failed"));
+  }
+
+  let provider;
+  try {
+    provider = await getActiveSearchProvider();
+  } catch (error) {
+    const code = error instanceof SearchProviderError && error.code === "missing-config" ? "missing-search-config" : "provider-failed";
+    return actionRedirect(buildSearchErrorRedirect(project.id, code));
+  }
+
+  let raw;
+  let findings: CoachResearchFinding[];
+  try {
+    raw = await runEvaluationResearch({ document, provider });
+    findings = buildResearchFindings(raw);
+  } catch {
+    return actionRedirect(buildSearchErrorRedirect(project.id, "search-unavailable"));
+  }
+
+  if (findings.length === 0) return actionRedirect(buildSearchErrorRedirect(project.id, "invalid-provider-response"));
+
+  let report;
+  try {
+    report = await createCoachResearchReport({
+      projectId: project.id,
+      resumeId: master.id,
+      queueItemIds: ["skill-scarcity", "company-verify"],
+      findings,
+    });
+  } catch {
+    return actionRedirect(buildSearchErrorRedirect(project.id, "report-persist-failed"));
+  }
+
+  // config 为 null（无默认模型）时 synthesize 自动规则降级，离线必可用；生产用真实 LLM 评级。
+  const config = await getDefaultModelConfig().catch(() => null);
+  try {
+    // synthesize（含 evaluationSummarySchema.parse）与写 session 同包 try/catch：
+    // 保证 Promise<never> 退出契约不被未捕获异常破坏，且不留「写 session 成功但无 redirect」半更新态。
+    const { summary } = await synthesizeEvaluationSummary({
+      document,
+      reportId: report.id,
+      scarcity: raw.scarcity,
+      verification: raw.verification,
+      jdCoverage: raw.jdCoverage,
+      config,
+    });
+    await updateSessionEvaluationSummary(sessionId, summary);
+  } catch {
+    return actionRedirect(buildSearchErrorRedirect(project.id, "report-persist-failed"));
+  }
+
   return actionRedirect(`/projects/${project.id}/coach?researchStatus=provider&report=${report.id}`);
 }
 
