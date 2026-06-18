@@ -10,7 +10,9 @@ import {
   type LayoutOverrides,
 } from "@/features/layout/overrides";
 import type { LayoutBlock, LayoutSchema, LayoutTheme } from "@/features/layout/schema";
+import type { LayoutThemePreset } from "@/features/layout/themes";
 import { saveLayoutOverridesAction } from "./actions";
+import { applyPresetToOverrides } from "./theme-preset-view";
 import { BlockReorderPanel, blockDisplayLabel } from "./block-reorder";
 import { EditorPreviewPanel } from "./editor-preview-panel";
 import { EditorSidebar } from "./editor-sidebar";
@@ -128,6 +130,11 @@ export function LayoutEditor({
       delete next.theme;
       return next;
     });
+  }
+
+  // 套用 B4 主题预设：整体替换 overrides.theme（走 updateOverrides，自动入 history + 置 dirty）。
+  function applyThemePreset(preset: LayoutThemePreset): void {
+    updateOverrides((current) => applyPresetToOverrides(current, preset));
   }
 
   function toggleBlock(key: string, hidden: boolean): void {
@@ -248,6 +255,7 @@ export function LayoutEditor({
           <ThemeEditor
             theme={theme}
             onThemeChange={(key, value) => updateTheme(key, cleanThemeValue(key, value))}
+            onApplyPreset={applyThemePreset}
             onReset={resetTheme}
           />
         ) : null}

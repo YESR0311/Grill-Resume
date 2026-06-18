@@ -3,35 +3,18 @@
 // UI skeleton reference: external/JobPilot/src/components/editor/theme-editor.tsx (Apache-2.0). Reimplemented over LayoutTheme; no code copied.
 
 import type { LayoutTheme } from "@/features/layout/schema";
-
-const PRESETS: Array<{ id: string; label: string; theme: Partial<LayoutTheme>; swatches: string[] }> = [
-  {
-    id: "clean",
-    label: "Clean",
-    theme: { accentColor: "#2F6F73", fontCJK: "Microsoft YaHei", fontLatin: "Calibri", baseFontPt: 10.5, lineSpacing: 1.15 },
-    swatches: ["#16324F", "#2F6F73", "#EEF6F6"],
-  },
-  {
-    id: "ats",
-    label: "ATS",
-    theme: { accentColor: "#334155", fontCJK: "Microsoft YaHei", fontLatin: "Arial", baseFontPt: 10, lineSpacing: 1.12 },
-    swatches: ["#111827", "#334155", "#F8FAFC"],
-  },
-  {
-    id: "formal",
-    label: "Formal",
-    theme: { accentColor: "#1F4E79", fontCJK: "SimSun", fontLatin: "Times New Roman", baseFontPt: 10.5, lineSpacing: 1.2 },
-    swatches: ["#1F4E79", "#64748B", "#FFFFFF"],
-  },
-];
+import { layoutThemePresets, type LayoutThemePreset } from "@/features/layout/themes";
+import { summarizeThemePreset } from "./theme-preset-view";
 
 export function ThemeEditor({
   theme,
   onThemeChange,
+  onApplyPreset,
   onReset,
 }: {
   theme: LayoutTheme;
   onThemeChange: <K extends keyof LayoutTheme>(key: K, value: LayoutTheme[K]) => void;
+  onApplyPreset: (preset: LayoutThemePreset) => void;
   onReset: () => void;
 }) {
   return (
@@ -48,26 +31,25 @@ export function ThemeEditor({
             </button>
           </div>
           <div className="mt-3 grid gap-2">
-            {PRESETS.map((preset) => (
+            {layoutThemePresets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
-                onClick={() => {
-                  for (const [key, value] of Object.entries(preset.theme) as Array<[keyof LayoutTheme, LayoutTheme[keyof LayoutTheme]]>) {
-                    onThemeChange(key, value);
-                  }
-                }}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-left text-sm hover:border-slate-400"
+                onClick={() => onApplyPreset(preset)}
+                className="flex flex-col gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm hover:border-slate-400"
               >
                 <span className="font-medium text-slate-700">{preset.label}</span>
-                <span className="flex gap-1">
-                  {preset.swatches.map((color) => (
-                    <span key={color} className="size-4 rounded-sm border border-slate-200" style={{ backgroundColor: color }} />
+                <span className="flex flex-wrap gap-1">
+                  {summarizeThemePreset(preset).map((chip, index) => (
+                    <span key={`${chip}-${index}`} className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
+                      {chip}
+                    </span>
                   ))}
                 </span>
               </button>
             ))}
           </div>
+          <p className="mt-2 text-[11px] leading-4 text-slate-400">预设仅套用字体/字号/行距；页边距暂未接入导出。</p>
         </section>
 
         <section className="space-y-3">
