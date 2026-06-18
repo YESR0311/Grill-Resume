@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { applyPolishCandidateAction, discardPolishCandidateAction, generatePolishCandidatesAction } from "@/features/coach/actions";
+import { applyPolishCandidateAction, batchApplyPolishCandidatesAction, discardPolishCandidateAction, generatePolishCandidatesAction } from "@/features/coach/actions";
 import { advancePipelineAction, skipPolishAndAdvanceAction } from "@/features/pipeline/actions";
 import { getPipelinePolishProgress, isPipelinePolishReadyForExport } from "@/features/pipeline/polish";
 import { getSession as getPipelineSession } from "@/features/pipeline/storage";
@@ -30,7 +30,7 @@ const tierLabel: Record<PolishRunTier, string> = {
 
 type Props = {
   params: Promise<{ projectId: string }>;
-  searchParams?: Promise<{ polishStatus?: string; polishCode?: string; run?: string; session?: string; pipeline?: string }>;
+  searchParams?: Promise<{ polishStatus?: string; polishCode?: string; run?: string; session?: string; pipeline?: string; batchApplied?: string; batchFailed?: string }>;
 };
 
 function DiffView({ before, after }: { before: string; after: string }) {
@@ -90,6 +90,8 @@ export default async function PolishPage({ params, searchParams }: Props) {
           {query.polishStatus === "generated" ? <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">已生成 3 个润色候选。</p> : null}
           {query.polishStatus === "applied" ? <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">已新增 confirmed bullet，原文保留。</p> : null}
           {query.polishStatus === "discarded" ? <p className="mt-4 rounded-2xl bg-slate-100 p-3 text-sm text-slate-700">已丢弃候选。</p> : null}
+          {query.polishStatus === "batch-applied" ? <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">批量应用完成：成功 {Number.parseInt(query.batchApplied ?? "0", 10) || 0} 条，失败 {Number.parseInt(query.batchFailed ?? "0", 10) || 0} 条。失败候选仍保留为可应用状态，可重试。</p> : null}
+          {query.polishStatus === "batch-empty" ? <p className="mt-4 rounded-2xl bg-slate-100 p-3 text-sm text-slate-700">未选择任何候选。</p> : null}
           {query.pipeline === "polish-generated" ? <p className="mt-4 rounded-2xl bg-sky-50 p-3 text-sm text-sky-700">Pipeline 已为可润色 bullet 生成缺失候选。</p> : null}
           {resumeError ? <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{resumeError}</p> : null}
         </section>
@@ -183,8 +185,17 @@ export default async function PolishPage({ params, searchParams }: Props) {
           ) : (
             (() => {
               const view = buildPolishRunsView({ runs });
+              const hasReady = view.runs.some(({ run }) => run.candidates.some((candidate) => candidate.status === "ready"));
               return (
                 <>
+                  {/* 空批量 form：靠 HTML5 form= 属性关联下方 checkbox，避免与单应用/丢弃 form 嵌套 */}
+                  <form id="batch-apply-form" action={batchApplyPolishCandidatesAction.bind(null, project.id, master.id)} />
+                  {hasReady ? (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="max-w-2xl text-xs leading-5 text-emerald-800">勾选下方多个候选后一次性应用为 confirmed bullet（使用候选原文；需逐条改文本请用单条「应用为 confirmed bullet」）。</p>
+                      <button type="submit" form="batch-apply-form" className="rounded-full bg-emerald-700 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-800">批量应用选中候选</button>
+                    </div>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
                     <span className={`rounded-full border px-3 py-1 ${tierClass.high}`}>{tierLabel.high} {view.tierCounts.high}</span>
                     <span className={`rounded-full border px-3 py-1 ${tierClass.medium}`}>{tierLabel.medium} {view.tierCounts.medium}</span>
@@ -218,6 +229,10 @@ export default async function PolishPage({ params, searchParams }: Props) {
                               <p className="mt-3 text-xs leading-5 text-slate-500">{candidate.rationale}</p>
                               {candidate.status === "ready" ? (
                                 <div className="mt-4 space-y-3">
+                                  <label className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
+                                    <input type="checkbox" name="selectedCandidate" value={`${run.id}:${candidate.id}`} form="batch-apply-form" className="h-4 w-4" />
+                                    批量勾选此候选
+                                  </label>
                                   <form action={applyPolishCandidateAction.bind(null, project.id, master.id, run.id, candidate.id)} className="space-y-2">
                                     <textarea name="finalText" defaultValue={candidate.text} className="min-h-28 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
                                     <button className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800">应用为 confirmed bullet</button>

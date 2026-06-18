@@ -6,6 +6,7 @@ import {
   executeApplyBulletDraft,
   executeApplyEvidenceBulletDraft,
   executeApplyPolish,
+  executeBatchApplyPolish,
   executeCoachResearch,
   executeConfirmFinding,
   executeDiscardPolish,
@@ -18,6 +19,7 @@ import {
   executeSearchEvaluation,
   type ActionResult,
 } from "./action-helpers";
+import { buildBatchPolishRedirect, parseBatchApplySelections } from "./batch-apply-selection";
 import { getPipelinePolishProgress, isPipelinePolishReadyForExport } from "@/features/pipeline/polish";
 import { getSession, saveSession } from "@/features/pipeline/storage";
 import type { PipelineSession, PipelineStage } from "@/features/pipeline";
@@ -131,6 +133,23 @@ export async function applyPolishCandidateAction(projectId: string, resumeId: st
   const result = await resolveActionResult(executeApplyPolish(projectId, resumeId, runId, candidateId, formData));
   await syncPipelinePolish(projectId, resumeId, result.redirect);
   redirect(result.redirect);
+}
+
+export async function batchApplyPolishCandidatesAction(projectId: string, resumeId: string, formData: FormData) {
+  // 入参来自用户显式勾选的 "runId:candidateId"。
+  const items = parseBatchApplySelections(formData.getAll("selectedCandidate").map(String));
+  // 空选择无任何写盘/进度变化：直接回 batch-empty，跳过 syncPipelinePolish（避免无意义 checkpoint 膨胀）。
+  if (items.length === 0) {
+    redirect(buildBatchPolishRedirect(projectId, { applied: 0, failed: 0, selected: 0 }));
+  }
+  const result = await executeBatchApplyPolish(projectId, resumeId, items);
+  const redirectUrl = buildBatchPolishRedirect(projectId, {
+    applied: result.applied.length,
+    failed: result.failed.length,
+    selected: items.length,
+  });
+  await syncPipelinePolish(projectId, resumeId, redirectUrl);
+  redirect(redirectUrl);
 }
 
 export async function discardPolishCandidateAction(projectId: string, resumeId: string, runId: string, candidateId: string) {
