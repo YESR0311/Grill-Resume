@@ -8,8 +8,25 @@ import { diffText } from "@/features/polish/diff";
 import { listPolishRuns, type PolishRun } from "@/features/polish/store";
 import { toneLabel } from "@/features/polish/tone";
 import { getProject, listResumes, readResume } from "@/features/resume/storage";
+import { buildPolishRunsView, type PolishRunTier } from "./polish-runs-view";
 
 export const dynamic = "force-dynamic";
+
+// tier 配色/文案（本地常量，与 F1 同惯例，不依赖其他组件私有常量）：
+// high=emerald / medium=sky / low=amber / untiered=slate。
+const tierClass: Record<PolishRunTier, string> = {
+  high: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  medium: "border-sky-200 bg-sky-50 text-sky-900",
+  low: "border-amber-200 bg-amber-50 text-amber-900",
+  untiered: "border-slate-200 bg-slate-50 text-slate-600",
+};
+
+const tierLabel: Record<PolishRunTier, string> = {
+  high: "高价值",
+  medium: "中等",
+  low: "待补强",
+  untiered: "未评级",
+};
 
 type Props = {
   params: Promise<{ projectId: string }>;
@@ -164,44 +181,61 @@ export default async function PolishPage({ params, searchParams }: Props) {
           {runs.length === 0 ? (
             <p className="mt-5 text-sm text-slate-500">还没有润色候选。</p>
           ) : (
-            <div className="mt-5 space-y-6">
-              {runs.map((run) => (
-                <article key={run.id} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500">原文</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">{run.sourceBulletText}</p>
-                      {run.appliedAt ? <p className="mt-2 rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700 ring-1 ring-amber-200">归档原文 · 已应用候选</p> : null}
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{run.createdAt}</span>
+            (() => {
+              const view = buildPolishRunsView({ runs });
+              return (
+                <>
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+                    <span className={`rounded-full border px-3 py-1 ${tierClass.high}`}>{tierLabel.high} {view.tierCounts.high}</span>
+                    <span className={`rounded-full border px-3 py-1 ${tierClass.medium}`}>{tierLabel.medium} {view.tierCounts.medium}</span>
+                    <span className={`rounded-full border px-3 py-1 ${tierClass.low}`}>{tierLabel.low} {view.tierCounts.low}</span>
+                    <span className={`rounded-full border px-3 py-1 ${tierClass.untiered}`}>{tierLabel.untiered} {view.tierCounts.untiered}</span>
                   </div>
-                  <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                    {run.candidates.map((candidate) => (
-                      <div key={candidate.id} className="rounded-2xl border border-slate-200 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-medium text-white">{toneLabel(candidate.tone)}</span>
-                          <span className="text-xs text-slate-500">{candidate.status}</span>
-                        </div>
-                        {candidate.lowConfidence ? <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs text-amber-800">低置信：请人工核对事实支撑。</p> : null}
-                        <DiffView before={run.sourceBulletText} after={candidate.text} />
-                        <p className="mt-3 text-xs leading-5 text-slate-500">{candidate.rationale}</p>
-                        {candidate.status === "ready" ? (
-                          <div className="mt-4 space-y-3">
-                            <form action={applyPolishCandidateAction.bind(null, project.id, master.id, run.id, candidate.id)} className="space-y-2">
-                              <textarea name="finalText" defaultValue={candidate.text} className="min-h-28 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-                              <button className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800">应用为 confirmed bullet</button>
-                            </form>
-                            <form action={discardPolishCandidateAction.bind(null, project.id, master.id, run.id, candidate.id)}>
-                              <button className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-950">丢弃</button>
-                            </form>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">按履历价值排序——高价值经历的候选优先处理；价值评级来自 Evaluate 阶段的 AI 评估，仅供参考。</p>
+                  <div className="mt-5 space-y-6">
+                    {view.runs.map(({ run, tier }) => (
+                      <article key={run.id} className="rounded-2xl border border-slate-200 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">原文</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-700">{run.sourceBulletText}</p>
+                            {run.appliedAt ? <p className="mt-2 rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700 ring-1 ring-amber-200">归档原文 · 已应用候选</p> : null}
                           </div>
-                        ) : null}
-                      </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${tierClass[tier]}`}>{tierLabel[tier]}</span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{run.createdAt}</span>
+                          </div>
+                        </div>
+                        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                          {run.candidates.map((candidate) => (
+                            <div key={candidate.id} className="rounded-2xl border border-slate-200 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-medium text-white">{toneLabel(candidate.tone)}</span>
+                                <span className="text-xs text-slate-500">{candidate.status}</span>
+                              </div>
+                              {candidate.lowConfidence ? <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs text-amber-800">低置信：请人工核对事实支撑。</p> : null}
+                              <DiffView before={run.sourceBulletText} after={candidate.text} />
+                              <p className="mt-3 text-xs leading-5 text-slate-500">{candidate.rationale}</p>
+                              {candidate.status === "ready" ? (
+                                <div className="mt-4 space-y-3">
+                                  <form action={applyPolishCandidateAction.bind(null, project.id, master.id, run.id, candidate.id)} className="space-y-2">
+                                    <textarea name="finalText" defaultValue={candidate.text} className="min-h-28 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                                    <button className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800">应用为 confirmed bullet</button>
+                                  </form>
+                                  <form action={discardPolishCandidateAction.bind(null, project.id, master.id, run.id, candidate.id)}>
+                                    <button className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-950">丢弃</button>
+                                  </form>
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </article>
                     ))}
                   </div>
-                </article>
-              ))}
-            </div>
+                </>
+              );
+            })()
           )}
         </section>
       </div>
