@@ -38,10 +38,10 @@ export default async function SearchSettingsPage({ searchParams }: { searchParam
 
         <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
           <p className="text-sm text-slate-500">搜索设置</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Tavily SearchProvider</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">API Key 加密保存在本机 workspace/settings。保存后只发起一次 test query。</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Tavily 搜索服务</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">API Key 加密保存在本机设置目录。保存后只发起一次测试请求。</p>
           {query.status === "test-ok" ? <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">Tavily 测试成功。</p> : null}
-          {query.status === "saved-test-failed" ? <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-700">配置已保存，但测试请求失败；后续搜索会 fail closed。</p> : null}
+          {query.status === "saved-test-failed" ? <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-700">配置已保存，但测试请求失败；后续搜索会失败时拒绝外发（fail-closed）。</p> : null}
           {query.status === "error" ? <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">配置保存失败。</p> : null}
         </section>
 
@@ -57,7 +57,7 @@ export default async function SearchSettingsPage({ searchParams }: { searchParam
               <input name="monthlyQuota" type="number" min="1" defaultValue={config?.monthlyQuota ?? 1000} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2" />
             </label>
             <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-              Base URL
+              基础地址 (Base URL)
               <input name="baseUrl" required defaultValue={config?.baseUrl ?? "https://api.tavily.com"} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2" />
             </label>
             <label className="text-sm font-medium text-slate-700 sm:col-span-2">
@@ -77,7 +77,7 @@ export default async function SearchSettingsPage({ searchParams }: { searchParam
           {config ? (
             <div className="mt-5 text-sm text-slate-600">
               <p className="font-medium text-slate-900">{config.name}</p>
-              <p className="mt-1">{config.baseUrl} · {config.freeTier ? "free-tier" : "custom quota"}</p>
+              <p className="mt-1">{config.baseUrl} · {config.freeTier ? "免费额度" : "自定义额度"}</p>
               <p className="mt-1">API Key：{config.hasApiKey ? "已保存" : "未保存"}</p>
             </div>
           ) : <p className="mt-5 text-sm text-slate-500">尚未配置 Tavily。</p>}

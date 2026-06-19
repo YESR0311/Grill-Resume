@@ -52,7 +52,7 @@ export function PolishCandidatesView({
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
         <p className="font-medium">AI 正在生成润色候选…</p>
         <p className="text-xs leading-5 text-muted-foreground">
-          正在为每条 confirmed bullet 生成三种语气（保守/平衡/激进）的候选。生成完成后将显示。
+          正在为每条确定事实生成三种语气（保守/平衡/激进）的候选。生成完成后将显示。
         </p>
       </div>
     );
@@ -62,7 +62,7 @@ export function PolishCandidatesView({
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         <p className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-          暂无需要润色的 bullet。确认可跳过此阶段。
+          暂无需要润色的要点。确认可跳过此阶段。
         </p>
         <form action={advanceAction}>
           <Button type="submit" disabled={advancePending}>
@@ -81,7 +81,7 @@ export function PolishCandidatesView({
       <div>
         <h2 className="text-lg font-semibold">润色候选</h2>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          每条 bullet 有 3 个候选（保守/平衡/激进）。点击选择后确认应用。
+          每条要点有 3 个候选（保守/平衡/激进）。点击选择后确认应用。
         </p>
       </div>
 
@@ -107,7 +107,7 @@ export function PolishCandidatesView({
             <div>
               <h3 className="font-semibold">润色已完成</h3>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                所有 bullet 候选已处理。确认后进入导出预览。
+                所有要点候选已处理。确认后进入导出预览。
               </p>
             </div>
             <Badge variant="secondary">全部已确认</Badge>

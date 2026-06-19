@@ -178,7 +178,7 @@ function advanceDescription(stage: PipelineStage): string {
     case "grill":
       return "问答已完成，确认后进入 AI 联网评估阶段。";
     case "evaluate":
-      return "评估已完成，确认后进入 bullet 润色阶段。";
+      return "评估已完成，确认后进入要点润色阶段。";
     case "polish":
       return "润色已完成，确认后进入导出预览阶段。";
     case "export":

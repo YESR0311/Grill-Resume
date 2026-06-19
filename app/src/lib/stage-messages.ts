@@ -9,7 +9,7 @@ import type { PipelineStage, PipelineStageStatus } from "@/features/pipeline";
 
 /** 四阶段中文短标签。 */
 export const STAGE_LABELS: Record<PipelineStage, string> = {
-  grill: "追问",
+  grill: "问答",
   evaluate: "评估",
   polish: "润色",
   export: "导出",
@@ -18,8 +18,8 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
 /** 四阶段一句话说明（侧栏 / 进度条 tooltip）。 */
 export const STAGE_DESCRIPTIONS: Record<PipelineStage, string> = {
   grill: "逐题追问，把流水账逼近可证事实",
-  evaluate: "联网验证 JD 覆盖与经历价值",
-  polish: "生成候选，只在确认后改写 bullet",
+  evaluate: "联网验证岗位覆盖与经历价值",
+  polish: "生成候选，只在确认后改写要点",
   export: "确认单页排版，导出中文 DOCX",
 };
 
@@ -58,10 +58,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   "qa-target-not-experience": "该回答不属于经历，暂不可入图",
   "experience-not-found": "找不到对应经历",
   // AI clarify（grill enhancement）
-  "enhance-failed": "AI clarify 生成失败，请重试",
+  "enhance-failed": "AI 澄清生成失败，请重试",
   "missing-active-turn": "当前没有可追问的问题",
   "privacy-not-confirmed": "请先勾选外发数据确认",
-  unavailable: "AI clarify 暂不可用",
+  unavailable: "AI 澄清暂不可用",
   "persist-failed": "结果保存失败，请重试",
   "missing-project": "找不到项目",
   // intake
@@ -70,7 +70,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "candidate-not-found": "找不到候选，请重新解析",
   "apply-failed": "写入失败，请重试",
   // M3 stage gate
-  "session-not-found": "找不到 pipeline session，请重新开始",
+  "session-not-found": "找不到流程会话，请重新开始",
   "egress-failed": "隐私确认失败，请重试",
   "advance-failed": "阶段推进失败，请重试",
   "stage-not-failed": "当前阶段未失败，无需重试",
@@ -87,7 +87,7 @@ export function stageMessage(code: string | undefined | null): string | null {
 export function advanceLabel(stage: PipelineStage): string {
   switch (stage) {
     case "grill":
-      return "确认追问结果，进入评估";
+      return "确认问答结果，进入评估";
     case "evaluate":
       return "确认评估结果，进入润色";
     case "polish":

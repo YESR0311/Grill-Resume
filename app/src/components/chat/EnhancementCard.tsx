@@ -38,9 +38,9 @@ export function EnhancementCard({
     <div className="flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/5 p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-medium">AI clarify</p>
+          <p className="font-medium">AI 澄清</p>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-            显式触发；结果只作追问辅助和待确认 STAR 草稿，不写入 confirmed bullet。
+            显式触发；结果只作追问辅助和待确认 STAR 草稿，不写入确定事实。
           </p>
         </div>
         <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground">
@@ -52,20 +52,20 @@ export function EnhancementCard({
         <label className="flex items-start gap-2 rounded-xl border border-status-pending/40 bg-status-pending/10 p-3 text-xs leading-5">
           <input type="checkbox" name="privacyConfirmed" value="1" required className="mt-0.5" />
           <span>
-            我已确认：将向默认模型 provider 发送当前追问、最近 Q&A、confirmed evidence 摘要和已标记
-            untrusted 的 JD 片段，用于澄清 / 冲突 / 追问建议。
+            我已确认：将向默认模型服务商发送当前追问、最近问答、已确认证据摘要和已标记
+            不可信的岗位描述片段，用于澄清 / 冲突 / 追问建议。
           </span>
         </label>
         <div className="flex items-center gap-3">
           <Button type="submit" variant="secondary" size="sm" disabled={!hasActiveTurn || !hasDefaultModel || pending}>
-            {pending ? "生成中…" : "生成 AI clarify"}
+            {pending ? "生成中…" : "生成 AI 澄清"}
           </Button>
           {state.ts > 0 && !state.ok ? (
             <span className="text-xs text-destructive">{stageMessage(state.code) ?? "生成失败。"}</span>
           ) : null}
         </div>
         {!hasDefaultModel ? (
-          <p className="text-xs text-muted-foreground">未配置默认模型时保持 deterministic 追问，不调用 provider。</p>
+          <p className="text-xs text-muted-foreground">未配置默认模型时保持固定规则追问，不调用服务商。</p>
         ) : null}
       </form>
 
@@ -106,7 +106,7 @@ function EnhancementResult({ enhancement }: { enhancement: GrillEnhancement }) {
               <li key={`${item.claim}:${item.citation}`} className="rounded-lg border border-destructive/20 bg-background p-2.5">
                 <p>主张：{item.claim}</p>
                 <p className="mt-1">证据：{item.evidence}</p>
-                <p className="mt-1 text-xs">{item.reason} · citation: {item.citation}</p>
+                <p className="mt-1 text-xs">{item.reason} · 引用：{item.citation}</p>
               </li>
             ))}
           </ul>
@@ -148,5 +148,5 @@ function ResultBlock({ title, children }: { title: string; children: React.React
 }
 
 function LowConfidence() {
-  return <p className={cn("text-xs text-status-pending")}>lowConfidence：请用户确认后再入图。</p>;
+  return <p className={cn("text-xs text-status-pending")}>低置信度：请用户确认后再入图。</p>;
 }

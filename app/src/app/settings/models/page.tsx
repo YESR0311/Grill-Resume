@@ -29,9 +29,9 @@ export default async function ModelSettingsPage() {
 
         <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
           <p className="text-sm text-slate-500">模型设置</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">OpenAI-compatible provider</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">OpenAI 兼容服务商</h1>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            API Key 加密保存在本机 workspace/settings。AI 请求会发送到你配置的 base URL。
+            API Key 加密保存在本机设置目录。AI 请求会发送到你配置的基础地址（Base URL）。
           </p>
           <Link href="/settings/search" className="mt-4 inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-950 hover:text-slate-950">
             配置 Tavily 搜索
@@ -50,7 +50,7 @@ export default async function ModelSettingsPage() {
               <input name="model" required placeholder="deepseek-chat" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2" />
             </label>
             <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-              Base URL
+              基础地址 (Base URL)
               <input name="baseUrl" required placeholder="https://api.deepseek.com/v1" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2" />
             </label>
             <label className="text-sm font-medium text-slate-700 sm:col-span-2">

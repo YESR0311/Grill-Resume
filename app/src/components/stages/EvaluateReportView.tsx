@@ -54,7 +54,7 @@ export function EvaluateReportView({
           {viewModel.jdMatchScore !== undefined ? (
             <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">JD 匹配度</span>
+                <span className="text-sm font-medium">岗位匹配度</span>
                 <Badge variant="secondary">{jdfitScoreLabel(viewModel.jdMatchScore)}</Badge>
               </div>
               <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -101,7 +101,7 @@ export function EvaluateReportView({
           {/* 未覆盖关键词 */}
           {viewModel.uncoveredKeywords.length > 0 ? (
             <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-              <p className="mb-1 text-sm font-semibold">JD 未覆盖关键词</p>
+              <p className="mb-1 text-sm font-semibold">岗位未覆盖关键词</p>
               <div className="flex flex-wrap gap-1.5">
                 {viewModel.uncoveredKeywords.map((kw) => (
                   <span
@@ -122,7 +122,7 @@ export function EvaluateReportView({
         <div>
           <h3 className="font-semibold">确认评估结果，进入润色</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            确认后将进入 AI 润色阶段，为每个 confirmed bullet 生成三种候选（保守/平衡/激进）。
+            确认后将进入 AI 润色阶段，为每个确定事实生成三种候选（保守/平衡/激进）。
           </p>
         </div>
         <div className="flex items-center gap-3">

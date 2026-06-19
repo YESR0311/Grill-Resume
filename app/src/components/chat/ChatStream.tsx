@@ -94,14 +94,14 @@ export function ChatStream({
         <div className="rounded-2xl border border-status-confirmed/40 bg-status-confirmed/10 p-5 text-sm">
           <p className="font-medium text-foreground">问答完成</p>
           <p className="mt-1 leading-6 text-muted-foreground">
-            所有追问 turn 已推进或阻塞。下一步在阶段门确认后进入评估。
+            所有追问轮次已推进或阻塞。下一步在阶段门确认后进入评估。
           </p>
         </div>
       ) : null}
 
       {hasExperiences && !activeTurn && !grillComplete ? (
         <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-          当前没有可追问的问题。补充经历或项目后会自动生成 Q&A 队列。
+          当前没有可追问的问题。补充经历或项目后会自动生成问答队列。
         </div>
       ) : null}
     </div>

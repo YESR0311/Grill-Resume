@@ -70,7 +70,7 @@ const KIND_LABELS: Record<CoachQuestionKind, string> = {
   result: "结果",
   metric: "指标",
   evidence: "证据",
-  "jd-fit": "JD 匹配",
+  "jd-fit": "岗位匹配",
 };
 
 export function questionKindLabel(value: CoachQuestionKind): string {

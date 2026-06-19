@@ -117,7 +117,7 @@ export function FitPredictionCard({
           ) : (
             <span className="text-amber-600">
               服务端估测{serverOverflow ? "溢出" : "可容纳"}
-              ，实测{clientFits ? "可容纳" : "溢出"}（pretext 更精确）
+              ，实测{clientFits ? "可容纳" : "溢出"}（客户端实测更精确）
             </span>
           )}
           {serverDecisions !== undefined && serverDecisions > 0 ? (

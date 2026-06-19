@@ -89,11 +89,11 @@ export function ActiveTurnCard({
           required
           maxLength={4000}
           defaultValue={answer?.answerText ?? ""}
-          placeholder="只用本地 workspace 保存；不会进入 confirmed bullet 或导出。"
+          placeholder="只用本地 workspace 保存；不会进入确定事实或导出。"
           className="min-h-28"
         />
         <p className="text-xs text-muted-foreground">
-          标记&ldquo;事实笔记&rdquo;仅改 Q&A 状态；写入 confirmed bullet 仍需走证据图与文案确认。
+          标记&ldquo;事实笔记&rdquo;仅改问答状态；写入确定事实仍需走证据图示与文案确认。
         </p>
         <div className="flex flex-wrap gap-2">
           <Button type="submit" name="status" value="draft" variant="outline" size="sm" disabled={savePending}>
@@ -154,9 +154,9 @@ function PromoteForm({
     return (
       <p className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
         {isProject
-          ? "项目 Q&A 暂不入 evidence graph；本轮只支持经历 Q&A。"
+          ? "项目问答暂不入证据图示；本轮只支持经历问答。"
           : !isConfirmed
-            ? "先标记为事实笔记，才可手填 STAR 入 evidence graph。"
+            ? "先标记为事实笔记，才可手填 STAR 入证据图示。"
             : "当前回答暂不可入图。"}
       </p>
     );
@@ -164,7 +164,7 @@ function PromoteForm({
 
   return (
     <form action={action} className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
-      <p className="font-medium">入 evidence graph（需手填 STAR；不会生成 confirmed bullet 或导出内容）</p>
+      <p className="font-medium">入证据图示（需手填 STAR；不会生成确定事实或导出内容）</p>
       <input type="hidden" name="starResultConfidence" value="confirmed" />
       <LabeledArea name="starContext" label="背景" maxLength={2000} />
       <LabeledArea name="starTask" label="任务" maxLength={2000} />
@@ -194,7 +194,7 @@ function PromoteForm({
       </label>
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" disabled={pending}>
-          确认写入 evidence graph
+          确认写入证据图示
         </Button>
         {state.ts > 0 ? (
           <span className={cn("text-xs", state.ok ? "text-status-confirmed" : "text-destructive")}>

@@ -39,7 +39,7 @@ export function IntakeComposer({ projectId, resumeId }: { projectId: string; res
           placeholder="目标岗位（可选）"
           className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         />
-        <Textarea name="jdText" placeholder="JD（可选）" className="min-h-20" />
+        <Textarea name="jdText" placeholder="岗位描述（可选）" className="min-h-20" />
         <Textarea
           name="rawText"
           required
