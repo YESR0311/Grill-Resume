@@ -223,9 +223,9 @@ export default async function WorkspacePage({ params }: Props) {
     // completed
     if (projection.view === "completed") {
       return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/30 p-8 text-center">
-          <p className="text-lg font-semibold text-emerald-800">项目已完成</p>
-          <p className="text-sm leading-6 text-emerald-600">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-status-confirmed/40 bg-status-confirmed/10 p-8 text-center">
+          <p className="text-lg font-semibold text-status-confirmed">项目已完成</p>
+          <p className="text-sm leading-6 text-muted-foreground">
             所有阶段已完成。在侧栏可切换其他项目或返回。
           </p>
         </div>

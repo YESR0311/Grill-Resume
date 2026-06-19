@@ -180,7 +180,7 @@ function PolishRunCard({
               className={cn(
                 "flex flex-col gap-2 rounded-xl border p-3 text-sm transition-all",
                 isApplied
-                  ? "border-emerald-300 bg-emerald-50/40"
+                  ? "border-status-confirmed/40 bg-status-confirmed/10"
                   : isSelected
                     ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                     : "border-border bg-muted/20",
@@ -296,7 +296,7 @@ function DiffView({ before, after }: { before: string; after: string }) {
           key={index}
           className={
             part.type === "added"
-              ? "bg-emerald-100 text-emerald-800"
+              ? "bg-status-confirmed/15 text-status-confirmed"
               : part.type === "removed"
                 ? "bg-muted text-muted-foreground line-through"
                 : ""

@@ -64,10 +64,10 @@ export function FitPredictionCard({
             className={cn(
               "inline-block h-2 w-2 rounded-full",
               clientFits
-                ? "bg-emerald-500"
+                ? "bg-status-confirmed"
                 : prediction.usedPercent < 120
-                  ? "bg-amber-500"
-                  : "bg-rose-500",
+                  ? "bg-status-pending"
+                  : "bg-status-failed",
             )}
           />
           <span className="text-xs font-medium tabular-nums">
@@ -82,10 +82,10 @@ export function FitPredictionCard({
           className={cn(
             "h-full rounded-full transition-all",
             prediction.usedPercent <= 100
-              ? "bg-emerald-500"
+              ? "bg-status-confirmed"
               : prediction.usedPercent <= 115
-                ? "bg-amber-500"
-                : "bg-rose-500",
+                ? "bg-status-pending"
+                : "bg-status-failed",
           )}
           style={{ width: `${Math.min(prediction.usedPercent, 150)}%` }}
         />
@@ -104,7 +104,7 @@ export function FitPredictionCard({
       </div>
 
       {/* 状态文本 */}
-      <p className={cn("text-[10px] leading-relaxed", clientFits ? "text-emerald-600" : "text-amber-600")}>
+      <p className={cn("text-[10px] leading-relaxed", clientFits ? "text-status-confirmed" : "text-status-pending")}>
         {clientFits
           ? "内容可在单页内排布。"
           : `超出单页 ${(prediction.usedPercent - 100).toFixed(0)}%，建议检查裁剪设置。`}
@@ -113,9 +113,9 @@ export function FitPredictionCard({
       {serverOverflow !== undefined ? (
         <div className="flex items-center gap-2 text-[10px]">
           {agree ? (
-            <span className="text-emerald-600">服务端估算与实测一致</span>
+            <span className="text-status-confirmed">服务端估算与实测一致</span>
           ) : (
-            <span className="text-amber-600">
+            <span className="text-status-pending">
               服务端估测{serverOverflow ? "溢出" : "可容纳"}
               ，实测{clientFits ? "可容纳" : "溢出"}（客户端实测更精确）
             </span>

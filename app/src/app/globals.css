@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* 暗色跟随系统 prefers-color-scheme（design §设计系统：product 工具夜间使用）。
+   纯 CSS media，无 JS、无水合闪烁；dark: 工具类与 token 切换同源一致。 */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 /*
  * Grill-Resume 主题 token（OKLCH，shadcn/ui 兼容）
@@ -55,7 +57,8 @@
   --stage-export: oklch(0.49 0.11 236);
 }
 
-.dark {
+@media (prefers-color-scheme: dark) {
+  :root {
   /* 中性冷灰基底（dark），非纯黑 */
   --background: oklch(0.185 0.012 252);
   --foreground: oklch(0.96 0.003 247);
@@ -92,6 +95,7 @@
   --stage-evaluate: oklch(0.70 0.105 214);
   --stage-polish: oklch(0.68 0.11 224);
   --stage-export: oklch(0.66 0.115 234);
+  }
 }
 
 @theme inline {

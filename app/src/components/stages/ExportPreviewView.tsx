@@ -90,16 +90,16 @@ export function ExportPreviewView({
             </div>
 
             {hasMissingBasics ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/20 p-3">
+              <div className="rounded-xl border border-status-pending/40 bg-status-pending/10 p-3">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="border-amber-300 text-amber-700">
+                  <Badge variant="outline" className="border-status-pending/40 text-status-pending">
                     待补全
                   </Badge>
                   <span className="text-xs text-muted-foreground">
                     以下基础信息缺失，建议返回补充：
                   </span>
                 </div>
-                <p className="mt-1.5 text-xs text-amber-800">
+                <p className="mt-1.5 text-xs text-status-pending">
                   {gapReport.missingBasics.join("、")}
                 </p>
               </div>

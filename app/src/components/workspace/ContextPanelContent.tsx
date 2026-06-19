@@ -59,7 +59,7 @@ export function ContextPanelContent({
           <Stat label="技能组" value={skillGroupCount} />
         </dl>
         {missingBasics.length > 0 ? (
-          <p className="mt-2.5 rounded-lg border border-amber-200 bg-amber-50/30 px-2.5 py-1.5 text-xs leading-5 text-amber-800">
+          <p className="mt-2.5 rounded-lg border border-status-pending/40 bg-status-pending/10 px-2.5 py-1.5 text-xs leading-5 text-status-pending">
             待补全：{missingBasics.join("、")}
           </p>
         ) : null}

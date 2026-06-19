@@ -65,10 +65,10 @@ export function EvaluateReportView({
                   className={cn(
                     "h-full rounded-full transition-all",
                     viewModel.jdMatchScore >= 75
-                      ? "bg-emerald-500"
+                      ? "bg-status-confirmed"
                       : viewModel.jdMatchScore >= 50
-                        ? "bg-amber-500"
-                        : "bg-rose-500",
+                        ? "bg-status-pending"
+                        : "bg-status-failed",
                   )}
                   style={{ width: `${viewModel.jdMatchScore}%` }}
                 />
@@ -82,11 +82,11 @@ export function EvaluateReportView({
             <div className="flex items-center gap-3">
               <h3 className="text-sm font-semibold">经历价值评级</h3>
               <div className="flex gap-1.5 text-xs text-muted-foreground">
-                <span className="text-emerald-600">高 {viewModel.tierCounts.high}</span>
+                <span className="text-status-confirmed">高 {viewModel.tierCounts.high}</span>
                 <span>/</span>
-                <span className="text-sky-600">中 {viewModel.tierCounts.medium}</span>
+                <span className="text-primary">中 {viewModel.tierCounts.medium}</span>
                 <span>/</span>
-                <span className="text-amber-600">低 {viewModel.tierCounts.low}</span>
+                <span className="text-status-pending">低 {viewModel.tierCounts.low}</span>
               </div>
             </div>
 
@@ -109,7 +109,7 @@ export function EvaluateReportView({
                 {viewModel.uncoveredKeywords.map((kw) => (
                   <span
                     key={kw}
-                    className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800"
+                    className="rounded-full border border-status-pending/40 bg-status-pending/10 px-2.5 py-1 text-xs text-status-pending"
                   >
                     {kw}
                   </span>
@@ -152,13 +152,13 @@ function RatingCard({
 }) {
   const tierLabel = { high: "高", medium: "中", low: "待补强" } as const;
   const tierDot = {
-    high: "bg-emerald-500",
-    medium: "bg-sky-500",
-    low: "bg-amber-500",
+    high: "bg-status-confirmed",
+    medium: "bg-primary",
+    low: "bg-status-pending",
   } as const;
 
   return (
-    <div className={cn("flex flex-col gap-2 rounded-xl border border-border bg-card p-4", rating.tier === "high" ? "border-l-emerald-500" : rating.tier === "medium" ? "border-l-sky-500" : "border-l-amber-500")}>
+    <div className={cn("flex flex-col gap-2 rounded-xl border border-border bg-card p-4", rating.tier === "high" ? "border-l-status-confirmed" : rating.tier === "medium" ? "border-l-primary" : "border-l-status-pending")}>
       <div className="flex items-center gap-2">
         <span className={cn("h-2 w-2 rounded-full", tierDot[rating.tier])} />
         <p className="text-sm font-medium">
