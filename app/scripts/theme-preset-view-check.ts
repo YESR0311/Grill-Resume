@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { applyPresetToOverrides, summarizeThemePreset } from "@/features/editor/theme-preset-view";
+import { applyPresetToOverrides, summarizeThemePreset } from "@/features/layout/theme-preset-view";
 import { getLayoutThemePreset, layoutThemePresets } from "@/features/layout/themes";
 import { createDefaultLayoutOverrides, type LayoutOverrides } from "@/features/layout/overrides";
 import type { LayoutThemePreset } from "@/features/layout/themes";

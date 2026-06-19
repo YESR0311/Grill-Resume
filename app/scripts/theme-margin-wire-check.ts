@@ -7,7 +7,7 @@ import {
   normalizeThemePresetId,
   type LayoutOverrides,
 } from "@/features/layout/overrides";
-import { applyPresetToOverrides } from "@/features/editor/theme-preset-view";
+import { applyPresetToOverrides } from "@/features/layout/theme-preset-view";
 import { getLayoutThemePreset } from "@/features/layout/themes";
 import { project as projectLayout } from "@/features/layout/project";
 import type { LayoutSchema } from "@/features/layout/schema";
