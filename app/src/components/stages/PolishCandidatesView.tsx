@@ -15,6 +15,7 @@ import type { PolishRun } from "@/features/polish/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * 润色候选对比视图（M3）。展示所有 PolishRun，每条含：
@@ -48,12 +49,16 @@ export function PolishCandidatesView({
 
   if (isGenerating) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 py-12 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-        <p className="font-medium">AI 正在生成润色候选…</p>
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+          <p className="text-sm font-medium">AI 正在生成润色候选…</p>
+        </div>
         <p className="text-xs leading-5 text-muted-foreground">
           正在为每条确定事实生成三种语气（保守/平衡/激进）的候选。生成完成后将显示。
         </p>
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
       </div>
     );
   }

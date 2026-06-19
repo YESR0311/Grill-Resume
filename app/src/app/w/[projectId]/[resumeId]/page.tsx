@@ -23,6 +23,8 @@ import { ExportPreviewView } from "@/components/stages/ExportPreviewView";
 import { StageAutoRunner } from "@/components/stages/StageAutoRunner";
 import { AutoAdvanceRunner } from "@/components/stages/AutoAdvanceRunner";
 import { AutoAdvanceToggle } from "@/components/workspace/AutoAdvanceToggle";
+import { ContextPanelContent } from "@/components/workspace/ContextPanelContent";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -132,16 +134,24 @@ export default async function WorkspacePage({ params }: Props) {
       );
     }
 
-    // evaluate-running：自动触发评估执行 + 显示 loading 提示
+    // evaluate-running：自动触发评估执行 + skeleton 占位（替代永久 spinner）
     if (projection.view === "evaluate-running") {
       return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 py-12 text-center">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           <StageAutoRunner projectId={projectId} resumeId={resumeId} kind="evaluate" />
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="font-medium">AI 联网评估中…</p>
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+            <p className="text-sm font-medium">AI 联网评估中…</p>
+          </div>
           <p className="text-xs leading-5 text-muted-foreground">
-            正在搜索验证技能稀缺性、公司背景与 JD 匹配度。完成后将自动显示报告。
+            正在搜索验证技能稀缺性、公司背景与岗位匹配度。完成后将自动显示报告。
           </p>
+          <div className="mt-1 flex flex-col gap-4">
+            <Skeleton className="h-24 w-full rounded-2xl" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
         </div>
       );
     }
@@ -255,7 +265,17 @@ export default async function WorkspacePage({ params }: Props) {
         </div>
       </main>
 
-      <ContextPanel title="上下文" emptyHint="当前阶段信息摘要即将在此显示。" />
+      <ContextPanel title="上下文">
+        <ContextPanelContent
+          view={projection.view}
+          stage={stage ?? null}
+          experienceCount={document.experiences.length}
+          projectCount={document.projects.length}
+          skillGroupCount={document.skills.length}
+          confirmedBullets={gapReport.confirmedExperienceBullets + gapReport.confirmedProjectBullets}
+          missingBasics={gapReport.missingBasics}
+        />
+      </ContextPanel>
     </div>
   );
 }

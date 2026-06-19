@@ -45,6 +45,8 @@ export function ChatStream({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      {!hasSession && !hasExperiences ? <OnboardingGuide /> : null}
+
       {messages.length > 0 ? (
         <ScrollArea className="max-h-[44vh]">
           <div className="flex flex-col gap-3 pr-3">
@@ -141,5 +143,41 @@ function StartGate({
         ) : null}
       </div>
     </form>
+  );
+}
+
+/**
+ * 首次进项目空态引导（design §核心交互 R3 onboarding）。三步心智地图，
+ * 取代「自己摸索如何用」。仅在无 session 且无经历时显示。
+ */
+function OnboardingGuide() {
+  const steps = [
+    { n: 1, t: "粘贴材料", d: "把流水账经历粘进下方，生成待确认候选" },
+    { n: 2, t: "逐题问答", d: "回答 AI 追问，把经历补成可证事实" },
+    { n: 3, t: "评估 · 润色 · 导出", d: "联网评估价值，润色要点，导出中文 DOCX" },
+  ];
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div>
+        <h2 className="text-base font-semibold">开始：三步生成中文简历</h2>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          全程本地优先，未确认的内容不会进入最终简历。
+        </p>
+      </div>
+      <ol className="grid gap-2.5 sm:grid-cols-3">
+        {steps.map((s) => (
+          <li
+            key={s.n}
+            className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
+              {s.n}
+            </span>
+            <span className="text-sm font-medium">{s.t}</span>
+            <span className="text-xs leading-5 text-muted-foreground">{s.d}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
