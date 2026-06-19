@@ -330,6 +330,28 @@ export function getProject(projectId: string): ProjectRecord | null {
   return row ? rowToProject(row) : null;
 }
 
+/**
+ * 删除整个项目：DB 行（ON DELETE CASCADE 连带 resumes/versions/exports/coach_*）
+ * 与 workspace 目录（含 pipeline sessions、drafts、exports 文件）。不可逆。
+ */
+export async function deleteProject(projectId: string): Promise<void> {
+  if (!isSafeDraftId(projectId)) {
+    throw new ResumeStorageError("项目 ID 无效");
+  }
+  // 路径逃逸双保险：projectDir 必须真落在 projects 根内
+  const projectsRoot = path.resolve(getProjectsRoot());
+  const projectDir = path.resolve(getProjectDir(projectId));
+  const relative = path.relative(projectsRoot, projectDir);
+  if (relative.length === 0 || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new ResumeStorageError("项目路径不在 workspace projects 内");
+  }
+
+  // 先删 DB（外键级联清理关联行）；FS 残留目录无害且不会被 nanoid 复用。
+  const db = getDb();
+  db.prepare(`DELETE FROM projects WHERE id = ?`).run(projectId);
+  await fs.rm(projectDir, { recursive: true, force: true });
+}
+
 export function listResumes(projectId: string): ResumeRecord[] {
   const db = getDb();
   const rows = db

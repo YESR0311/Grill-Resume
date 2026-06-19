@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ProjectRecord } from "@/features/resume/types";
 import type { PipelineSession } from "@/features/pipeline";
 import { StageProgress } from "./StageProgress";
+import { DeleteProjectButton } from "./DeleteProjectButton";
 import { cn } from "@/lib/utils";
 
 export type SidebarProps = {
@@ -47,11 +48,11 @@ export function Sidebar({
             const isActive = project.id === currentProjectId;
             const href = resumeId ? `/w/${project.id}/${resumeId}` : `/projects/${project.id}`;
             return (
-              <li key={project.id}>
+              <li key={project.id} className="group flex items-center gap-0.5">
                 <Link
                   href={href}
                   className={cn(
-                    "block truncate rounded-md px-2.5 py-2 text-sm transition-colors",
+                    "min-w-0 flex-1 truncate rounded-md px-2.5 py-2 text-sm transition-colors",
                     isActive
                       ? "bg-accent text-accent-foreground font-medium"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -59,6 +60,12 @@ export function Sidebar({
                 >
                   {project.name}
                 </Link>
+                <DeleteProjectButton
+                  projectId={project.id}
+                  projectName={project.name}
+                  isCurrent={isActive}
+                  className="py-2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                />
               </li>
             );
           })}

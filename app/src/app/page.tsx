@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createProject, listProjects, listResumes } from "@/features/resume/storage";
+import { DeleteProjectButton } from "@/components/workspace/DeleteProjectButton";
 
 export const dynamic = "force-dynamic";
 
@@ -66,14 +67,19 @@ export default function Home() {
               const resumeId = resumeIdByProject[project.id];
               const href = resumeId ? `/w/${project.id}/${resumeId}` : `/projects/${project.id}`;
               return (
-                <li key={project.id}>
+                <li key={project.id} className="group flex items-center gap-1 pr-2 transition-colors hover:bg-secondary">
                   <Link
                     href={href}
-                    className="flex items-center justify-between gap-4 px-4 py-3.5 text-sm transition-colors hover:bg-secondary"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-3.5 text-sm"
                   >
-                    <span className="font-medium">{project.name}</span>
-                    <span className="text-xs text-muted-foreground">打开 →</span>
+                    <span className="truncate font-medium">{project.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">打开 →</span>
                   </Link>
+                  <DeleteProjectButton
+                    projectId={project.id}
+                    projectName={project.name}
+                    className="px-2 py-1 text-base opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                  />
                 </li>
               );
             })}
