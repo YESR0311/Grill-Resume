@@ -10,7 +10,9 @@ import {
   executeSaveQaAnswer,
   executeApplyPolish,
   executeDiscardPolish,
+  executePipelineEvaluation,
 } from "@/features/coach/action-helpers";
+import { generateMissingPipelinePolishRuns } from "@/features/pipeline/polish";
 import { applyIntakeCandidates, parseRawTextIntake, writeIntakeCandidate, type ResumeIntakeCandidate } from "@/features/intake";
 import { getProjectResume, createExportRecord, readLayoutOverrides } from "@/features/resume/storage";
 import { createSession, readSession, saveSession, getNextPipelineStage, confirmEgressItems } from "@/features/pipeline/storage";
@@ -341,6 +343,125 @@ export async function retryStageInWorkspace(
   }
   revalidatePath(workspacePath(projectId, resumeId));
   return { ts: Date.now(), ok: true, code: "retrying" };
+}
+
+// ── 阶段 AI 自动执行（接线：advance 翻 in_progress 后由前端触发器触发对应阶段 AI）──
+
+/**
+ * 评估阶段自动执行。进入 evaluate(in_progress) 后由前端触发器调用一次。
+ * 调 executePipelineEvaluation 执行联网评估并写 session.evaluationSummary，
+ * 成功后把 evaluate 设 awaiting_user（→ 报告视图），失败设 failed（→ 可重试），
+ * 消除「评估中…」永久 spinner。
+ * 幂等：非 evaluate/in_progress 直接 skip，防触发器重复执行。
+ */
+export async function runEvaluationInWorkspace(
+  projectId: string,
+  resumeId: string,
+): Promise<WorkspaceActionState> {
+  const session = await readSession(projectId);
+  if (!session || session.resumeId !== resumeId) {
+    return { ts: Date.now(), ok: false, code: "session-not-found" };
+  }
+  if (session.currentStage !== "evaluate" || session.stages.evaluate.status !== "in_progress") {
+    return { ts: Date.now(), ok: true, code: "skip" };
+  }
+
+  // egress 已在前置 gate 确认；自动构造 privacy=1 触发执行。
+  const formData = new FormData();
+  formData.set("privacyConfirmed", "1");
+
+  let researchError: string | null = null;
+  try {
+    const redirectUrl = await captureCoachRedirect(
+      executePipelineEvaluation(projectId, session.id, formData),
+    );
+    researchError = redirectQuery(redirectUrl).get("researchError");
+  } catch {
+    researchError = "evaluate-failed";
+  }
+
+  const after = await readSession(projectId);
+  if (!after) return { ts: Date.now(), ok: false, code: "session-not-found" };
+  const now = new Date().toISOString();
+
+  // 以 evaluationSummary 写入为成功判据。
+  if (!researchError && after.evaluationSummary) {
+    await saveSession({
+      ...after,
+      stages: {
+        ...after.stages,
+        evaluate: { ...after.stages.evaluate, status: "awaiting_user", errorCode: undefined },
+      },
+      updatedAt: now,
+    });
+    revalidatePath(workspacePath(projectId, resumeId));
+    return { ts: Date.now(), ok: true, code: "evaluated" };
+  }
+
+  const code = researchError ?? "evaluate-failed";
+  await saveSession({
+    ...after,
+    stages: {
+      ...after.stages,
+      evaluate: { ...after.stages.evaluate, status: "failed", errorCode: code, failedAt: now },
+    },
+    updatedAt: now,
+  });
+  revalidatePath(workspacePath(projectId, resumeId));
+  return { ts: Date.now(), ok: false, code };
+}
+
+/**
+ * 润色阶段自动执行。进入 polish(in_progress) 后由前端触发器调用一次。
+ * 调 generateMissingPipelinePolishRuns 生成候选，成功设 awaiting_user，失败设 failed。
+ * 幂等：非 polish/in_progress 直接 skip。
+ */
+export async function runPolishInWorkspace(
+  projectId: string,
+  resumeId: string,
+): Promise<WorkspaceActionState> {
+  const session = await readSession(projectId);
+  if (!session || session.resumeId !== resumeId) {
+    return { ts: Date.now(), ok: false, code: "session-not-found" };
+  }
+  if (session.currentStage !== "polish" || session.stages.polish.status !== "in_progress") {
+    return { ts: Date.now(), ok: true, code: "skip" };
+  }
+
+  const now = new Date().toISOString();
+  try {
+    await generateMissingPipelinePolishRuns(projectId, resumeId, {
+      evaluationSummary: session.evaluationSummary,
+    });
+  } catch {
+    const after = await readSession(projectId);
+    if (after) {
+      await saveSession({
+        ...after,
+        stages: {
+          ...after.stages,
+          polish: { ...after.stages.polish, status: "failed", errorCode: "polish-failed", failedAt: now },
+        },
+        updatedAt: now,
+      });
+    }
+    revalidatePath(workspacePath(projectId, resumeId));
+    return { ts: Date.now(), ok: false, code: "polish-failed" };
+  }
+
+  const after = await readSession(projectId);
+  if (after) {
+    await saveSession({
+      ...after,
+      stages: {
+        ...after.stages,
+        polish: { ...after.stages.polish, status: "awaiting_user", errorCode: undefined },
+      },
+      updatedAt: now,
+    });
+  }
+  revalidatePath(workspacePath(projectId, resumeId));
+  return { ts: Date.now(), ok: true, code: "polished" };
 }
 
 // ── M3 polish apply/discard — 包装旧 redirect action ──

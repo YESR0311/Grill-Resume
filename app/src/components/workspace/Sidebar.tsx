@@ -33,7 +33,7 @@ export function Sidebar({
           简历工坊
         </Link>
         <Link
-          href="/projects/new"
+          href="/"
           className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
         >
           新建

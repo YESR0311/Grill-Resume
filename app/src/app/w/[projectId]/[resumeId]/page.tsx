@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProjectResume, listProjects, listResumes } from "@/features/resume/storage";
+import { getProjectResume, listExports, listProjects, listResumes } from "@/features/resume/storage";
 import { getSession } from "@/features/pipeline/storage";
 import { buildExperienceQuestionQueue } from "@/features/coach/questions";
 import { buildGrillSession } from "@/features/coach/conversation/engine";
@@ -20,6 +20,7 @@ import { StageGate } from "@/components/stages/StageGate";
 import { EvaluateReportView, type EvaluationReportView } from "@/components/stages/EvaluateReportView";
 import { PolishCandidatesView } from "@/components/stages/PolishCandidatesView";
 import { ExportPreviewView } from "@/components/stages/ExportPreviewView";
+import { StageAutoRunner } from "@/components/stages/StageAutoRunner";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,11 @@ export default async function WorkspacePage({ params }: Props) {
   const polishRuns = stage === "polish" ? await listPolishRuns(projectId, resumeId) : [];
 
   // 导出预览（export 阶段用）
+  const exportRecords = stage === "export" ? listExports(resumeId) : [];
+  const latestExport =
+    exportRecords.length > 0
+      ? [...exportRecords].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      : null;
   const gapReport = buildDocxGapReport(document);
   const snapshot = session?.exportSnapshot;
   const fitExplanation =
@@ -124,10 +130,11 @@ export default async function WorkspacePage({ params }: Props) {
       );
     }
 
-    // evaluate-running：显示 loading 提示
+    // evaluate-running：自动触发评估执行 + 显示 loading 提示
     if (projection.view === "evaluate-running") {
       return (
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 py-12 text-center">
+          <StageAutoRunner projectId={projectId} resumeId={resumeId} kind="evaluate" />
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
           <p className="font-medium">AI 联网评估中…</p>
           <p className="text-xs leading-5 text-muted-foreground">
@@ -153,15 +160,21 @@ export default async function WorkspacePage({ params }: Props) {
       return <StageGate projectId={projectId} resumeId={resumeId} session={session} />;
     }
 
-    // polish：润色候选
+    // polish：in_progress 自动触发润色生成；否则展示候选
     if (projection.view === "polish" && session) {
+      const polishRunning = session.stages.polish.status === "in_progress";
       return (
-        <PolishCandidatesView
-          projectId={projectId}
-          resumeId={resumeId}
-          runs={polishRuns}
-          stageStatus={session?.stages[stage!]?.status}
-        />
+        <>
+          {polishRunning ? (
+            <StageAutoRunner projectId={projectId} resumeId={resumeId} kind="polish" />
+          ) : null}
+          <PolishCandidatesView
+            projectId={projectId}
+            resumeId={resumeId}
+            runs={polishRuns}
+            stageStatus={session.stages.polish.status}
+          />
+        </>
       );
     }
 
@@ -174,6 +187,7 @@ export default async function WorkspacePage({ params }: Props) {
           session={session}
           gapReport={gapReport}
           fitExplanation={fitExplanation}
+          latestExportId={latestExport?.id ?? null}
         />
       );
     }

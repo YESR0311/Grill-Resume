@@ -29,12 +29,14 @@ export function ExportPreviewView({
   session,
   gapReport,
   fitExplanation,
+  latestExportId,
 }: {
   projectId: string;
   resumeId: string;
   session: PipelineSession;
   gapReport: DocxGapReport;
   fitExplanation: FitExplanationView | null;
+  latestExportId: string | null;
 }) {
   const [exportState, exportAction, exportPending] = useActionState(
     exportDocxInWorkspace.bind(null, projectId, resumeId),
@@ -68,7 +70,7 @@ export function ExportPreviewView({
             <p className="text-sm font-semibold">内容概况</p>
             <div className="grid gap-2 text-sm md:grid-cols-3">
               <div className="rounded-xl border border-border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Confirmed Bullet</p>
+                <p className="text-xs text-muted-foreground">确定事实</p>
                 <p className="mt-1 text-xl font-semibold text-foreground">
                   {totalConfirmedBullets}
                 </p>
@@ -131,7 +133,7 @@ export function ExportPreviewView({
                     隐藏了 {fitExplanation.hiddenBlockTotal} 个板块
                   </p>
                   <p className="text-muted-foreground">
-                    裁剪了 {fitExplanation.trimmedBulletTotal} 条 bullet
+                    裁剪了 {fitExplanation.trimmedBulletTotal} 条要点
                   </p>
                 </div>
               ) : (
@@ -171,7 +173,7 @@ export function ExportPreviewView({
         <label className="flex items-start gap-2 rounded-xl border border-status-pending/40 bg-status-pending/10 p-3 text-xs leading-5">
           <input type="checkbox" name="privacyConfirmed" value="1" required className="mt-0.5" />
           <span>
-            我已确认：导出内容使用默认中文模板（zh-clean），仅含 confirmed 内容，不包含未确认草稿。
+            我已确认：导出内容使用默认中文模板（简洁中文版），仅含已确认内容，不包含未确认草稿。
           </span>
         </label>
         <input type="hidden" name="partialMode" value="1" />
@@ -189,6 +191,14 @@ export function ExportPreviewView({
             </span>
           ) : null}
         </div>
+        {latestExportId ? (
+          <a
+            href={`/projects/${projectId}/resumes/${resumeId}/export/${latestExportId}/download`}
+            className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            下载最近导出的 DOCX
+          </a>
+        ) : null}
       </form>
 
       {/* 完成门 */}
