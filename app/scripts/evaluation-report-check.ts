@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { buildEvaluationReportView } from "@/app/projects/[projectId]/coach/components/evaluation-report-panel";
+import { buildEvaluationReportView } from "@/features/coach/evaluation-report-builder";
 import type { EvaluationSummary } from "@/features/pipeline/types";
 
 // 运行方式：cd app && pnpm exec tsx scripts/evaluation-report-check.ts

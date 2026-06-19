@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { buildPolishRunsView } from "@/app/projects/[projectId]/coach/polish/polish-runs-view";
+import { buildPolishRunsView } from "@/features/polish/runs-view-sort";
 import type { PolishRun } from "@/features/polish/store";
 
 // 运行方式：cd app && pnpm exec tsx scripts/polish-runs-view-check.ts
