@@ -21,6 +21,8 @@ import { EvaluateReportView, type EvaluationReportView } from "@/components/stag
 import { PolishCandidatesView } from "@/components/stages/PolishCandidatesView";
 import { ExportPreviewView } from "@/components/stages/ExportPreviewView";
 import { StageAutoRunner } from "@/components/stages/StageAutoRunner";
+import { AutoAdvanceRunner } from "@/components/stages/AutoAdvanceRunner";
+import { AutoAdvanceToggle } from "@/components/workspace/AutoAdvanceToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -144,20 +146,36 @@ export default async function WorkspacePage({ params }: Props) {
       );
     }
 
-    // evaluate-report：评估报告
+    // evaluate-report：评估报告（autoAdvance 时隐藏手动门，由 AutoAdvanceRunner 倒计时推进）
     if (projection.view === "evaluate-report" && session && evaluateView) {
+      const autoRunning = session.autoAdvance;
       return (
-        <EvaluateReportView
-          projectId={projectId}
-          resumeId={resumeId}
-          viewModel={evaluateView}
-        />
+        <>
+          <EvaluateReportView
+            projectId={projectId}
+            resumeId={resumeId}
+            viewModel={evaluateView}
+            autoAdvancing={autoRunning}
+          />
+          {autoRunning ? (
+            <div className="mx-auto mt-4 w-full max-w-3xl">
+              <AutoAdvanceRunner projectId={projectId} resumeId={resumeId} nextLabel="润色" />
+            </div>
+          ) : null}
+        </>
       );
     }
 
-    // grill-gate：grill 完成后的阶段门
+    // grill-gate：grill 完成后的阶段门（autoAdvance 时叠加倒计时器，透明展示外发项 + 可暂停）
     if (projection.view === "grill-gate" && session) {
-      return <StageGate projectId={projectId} resumeId={resumeId} session={session} />;
+      return (
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+          {session.autoAdvance ? (
+            <AutoAdvanceRunner projectId={projectId} resumeId={resumeId} nextLabel="评估" />
+          ) : null}
+          <StageGate projectId={projectId} resumeId={resumeId} session={session} />
+        </div>
+      );
     }
 
     // polish：in_progress 自动触发润色生成；否则展示候选
@@ -223,6 +241,15 @@ export default async function WorkspacePage({ params }: Props) {
       />
 
       <main className="flex flex-1 flex-col overflow-y-auto">
+        {session ? (
+          <div className="border-b border-border px-6 py-2.5">
+            <AutoAdvanceToggle
+              projectId={projectId}
+              resumeId={resumeId}
+              enabled={session.autoAdvance}
+            />
+          </div>
+        ) : null}
         <div className="flex-1 px-6 py-8">
           {renderMain()}
         </div>

@@ -25,10 +25,13 @@ export function EvaluateReportView({
   projectId,
   resumeId,
   viewModel,
+  autoAdvancing = false,
 }: {
   projectId: string;
   resumeId: string;
   viewModel: EvaluationReportView;
+  /** autoAdvance 开启时隐藏手动确认门，由 AutoAdvanceRunner 倒计时自动推进。 */
+  autoAdvancing?: boolean;
 }) {
   const [egressState, egressAction, egressPending] = useActionState(
     confirmEgressInWorkspace.bind(null, projectId, resumeId),
@@ -117,7 +120,8 @@ export function EvaluateReportView({
         </div>
       </ScrollArea>
 
-      {/* 确认门 */}
+      {/* 确认门（autoAdvancing 时由 AutoAdvanceRunner 自动推进，隐藏手动门）*/}
+      {autoAdvancing ? null : (
       <form action={egressAction} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div>
           <h3 className="font-semibold">确认评估结果，进入润色</h3>
@@ -136,6 +140,7 @@ export function EvaluateReportView({
           ) : null}
         </div>
       </form>
+      )}
     </div>
   );
 }

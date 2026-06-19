@@ -15,7 +15,7 @@ import {
 import { generateMissingPipelinePolishRuns } from "@/features/pipeline/polish";
 import { applyIntakeCandidates, parseRawTextIntake, writeIntakeCandidate, type ResumeIntakeCandidate } from "@/features/intake";
 import { getProjectResume, createExportRecord, readLayoutOverrides } from "@/features/resume/storage";
-import { createSession, readSession, saveSession, getNextPipelineStage, confirmEgressItems } from "@/features/pipeline/storage";
+import { createSession, readSession, saveSession, getNextPipelineStage, confirmEgressItems, toggleAutoAdvance } from "@/features/pipeline/storage";
 import type { PipelineSession } from "@/features/pipeline/types";
 import { renderExport } from "@/features/export/render";
 import type { WorkspaceActionState } from "@/lib/workspace-action-state";
@@ -97,7 +97,8 @@ export async function runGrillEnhancementInWorkspace(
 }
 
 /**
- * 启动 pipeline session（不跳旧路由）。已有同简历 session 则复用，否则新建（autoAdvance=true）。
+ * 启动 pipeline session（不跳旧路由）。已有同简历 session 则复用，否则新建。
+ * autoAdvance 默认 false：联网外发与自动推进需用户「一次同意」后开启（见 toggleAutoAdvanceInWorkspace）。
  * 启动后 session.currentStage=grill，工作区投影从 start → grill-chat。
  */
 export async function startPipelineInWorkspace(
@@ -108,7 +109,7 @@ export async function startPipelineInWorkspace(
   if (!current) return { ts: Date.now(), ok: false, code: "missing-resume" };
   const existing = await readSession(projectId);
   if (!existing || existing.resumeId !== resumeId) {
-    createSession(projectId, resumeId, true);
+    createSession(projectId, resumeId, false);
   }
   revalidatePath(workspacePath(projectId, resumeId));
   return { ts: Date.now(), ok: true, code: "started" };
@@ -502,6 +503,77 @@ export async function discardPolishInWorkspace(
   const ok = query.get("polishStatus") === "discarded";
   revalidatePath(workspacePath(projectId, resumeId));
   return { ts: Date.now(), ok, code: ok ? "discarded" : query.get("polishCode") ?? "discard-failed" };
+}
+
+// ── 自动推进（项目级一次同意 + 计算阶段自动串接）──────────
+
+/**
+ * 切换「自动联网与推进」开关 = 项目级一次同意。
+ * 开启后计算阶段（问答→评估→润色）自动外发并推进，无需每步点击；
+ * 关闭后回退逐步手动确认（每次点击即单次同意）。已发出的外发不可撤销，
+ * 但关闭可阻止后续阶段外发。
+ */
+export async function toggleAutoAdvanceInWorkspace(
+  projectId: string,
+  resumeId: string,
+  enabled: boolean,
+): Promise<WorkspaceActionState> {
+  const session = await readSession(projectId);
+  if (!session || session.resumeId !== resumeId) {
+    return { ts: Date.now(), ok: false, code: "session-not-found" };
+  }
+  try {
+    await toggleAutoAdvance(session.id, enabled);
+  } catch {
+    return { ts: Date.now(), ok: false, code: "toggle-failed" };
+  }
+  revalidatePath(workspacePath(projectId, resumeId));
+  return { ts: Date.now(), ok: true, code: enabled ? "auto-on" : "auto-off" };
+}
+
+/**
+ * 自动推进一步：在计算阶段（grill / evaluate）的 awaiting_user 态，
+ * 自动确认该阶段 egress 项并推进到下一阶段（下一阶段 in_progress 由 StageAutoRunner 触发 AI）。
+ * 由 AutoAdvanceRunner 在倒计时结束后调用。
+ *
+ * 守卫：
+ *  - autoAdvance 关闭 → skip（用户已暂停/转手动）
+ *  - 非 awaiting_user → skip（结果未就绪）
+ *  - polish / export → skip（保留用户判断点：选候选 / 下载）
+ */
+export async function autoAdvanceStepInWorkspace(
+  projectId: string,
+  resumeId: string,
+): Promise<WorkspaceActionState> {
+  const session = await readSession(projectId);
+  if (!session || session.resumeId !== resumeId) {
+    return { ts: Date.now(), ok: false, code: "session-not-found" };
+  }
+  if (!session.autoAdvance) return { ts: Date.now(), ok: true, code: "skip" };
+
+  const stage = session.currentStage;
+  if (stage !== "grill" && stage !== "evaluate") {
+    return { ts: Date.now(), ok: true, code: "skip" };
+  }
+  if (session.stages[stage]?.status !== "awaiting_user") {
+    return { ts: Date.now(), ok: true, code: "skip" };
+  }
+
+  try {
+    // 项目级已同意：自动确认该阶段全部外发项（一致沿用 confirmEgress→advance 模式）。
+    const stageItemIds = session.egressPlan.items
+      .filter((item) => item.stage === stage)
+      .map((item) => item.id);
+    if (stageItemIds.length > 0) {
+      await confirmEgressItems(session.id, stageItemIds);
+    }
+    const updated = advanceSessionToNext(session);
+    await saveSession(updated);
+  } catch {
+    return { ts: Date.now(), ok: false, code: "advance-failed" };
+  }
+  revalidatePath(workspacePath(projectId, resumeId));
+  return { ts: Date.now(), ok: true, code: "advanced" };
 }
 
 // ── M3 导出 action ──────────────────────────────────────
