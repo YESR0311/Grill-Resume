@@ -11,6 +11,7 @@ import {
 } from "@/features/settings/store";
 import { SEARCH_KINDS } from "@/features/settings/types";
 import { TestConnectionButton } from "@/components/settings/TestConnectionButton";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -146,12 +147,14 @@ async function saveConnectionAction(formData: FormData) {
     model: String(formData.get("model") ?? ""),
     isDefault: false,
   });
+  revalidatePath("/settings");
 }
 
 async function deleteConnectionAction(formData: FormData) {
   "use server";
   const id = String(formData.get("id") ?? "");
   if (id) deleteConnection(id);
+  revalidatePath("/settings");
 }
 
 async function setTaskRouteAction(formData: FormData) {
@@ -164,6 +167,7 @@ async function setTaskRouteAction(formData: FormData) {
   } else {
     setTaskRoute(task, null);
   }
+  revalidatePath("/settings");
 }
 
 async function saveSearchAction(formData: FormData) {
@@ -176,12 +180,14 @@ async function saveSearchAction(formData: FormData) {
     apiKey: String(formData.get("apiKey") ?? ""),
     enabled: String(formData.get("enabled") ?? "") === "on",
   });
+  revalidatePath("/settings");
 }
 
 async function deleteSearchAction(formData: FormData) {
   "use server";
   const id = String(formData.get("id") ?? "");
   if (id) deleteSearchProvider(id);
+  revalidatePath("/settings");
 }
 
 // ─── 表单组件 ────────────────────────────────────────────

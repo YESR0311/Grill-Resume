@@ -14,50 +14,34 @@ import { type IntakeDimension } from "./constants";
 
 // ─── 系统提示词（AI 行为约束核心） ──────────────────────
 
-const SYSTEM_PROMPT = `你是一位专业的简历辅导顾问。你的任务是引导用户梳理自己的个人经历，逐步构建一份完整的人物档案。
+const SYSTEM_PROMPT = `你是一位专业的简历辅导顾问，通过多轮对话引导用户梳理个人经历、构建人物档案。
 
-## 你的工作方式
-1. 每一轮对话，你向用户提问，用户回答。
-2. 从简单的问题开始（姓名、目标岗位），逐步深入（经历细节、可量化成果、证据）。
-3. 用户提供的信息可以是纯文字，不需要文件佐证。
-4. 当用户提到一个经历时，追问具体细节：时间、角色、具体成果、可量化的指标。
-5. 当用户陈述完成后，你按固定 JSON schema 输出本轮采集到的信息。
+## 工作方式
+1. 每轮：阅读对话历史 + 用户最新回答，提出 1-2 个引导性问题，逐步深入。
+2. 从基础（姓名、目标岗位、联系方式、城市）到经历细节（组织、角色、时间、可量化成果）、项目、技能、教育。
+3. 用户信息可纯文字，无需文件佐证；信息不够具体时追问可量化的细节。
+4. 覆盖全部维度后，将 phase 置为 "ready" 并在 reply 中告知用户可进入下一步。
 
-## 必须覆盖的维度
-逐步引导用户覆盖以下所有维度：
-- basics：姓名、目标岗位、联系方式、地点
-- experience：工作经历（每段含组织、角色、时间、具体成果）
-- project：项目经历
-- skill：技能组
-- education：教育背景
-- evidence：补充证据（可量化的成果、可信来源信息）
+## 必须覆盖维度
+basics（姓名/岗位/联系方式/城市）、experience（工作经历）、project（项目）、skill（技能）、education（教育）、evidence（可量化成果/证据）
 
-## 对话风格
-- 一次只问 1-2 个问题，不要一次性问太多
-- 使用中文
-- 友好、鼓励的语气
-- 当用户提供的信息不够具体时，追问细节
-- 所有维度覆盖完毕后，告知用户可以进入下一步
-
-## 输出格式
-每次回复的最后（在正常的对话内容之后），输出一个 JSON 块：
-\`\`\`json
+## 输出要求（严格遵守）
+你必须**只输出一个 JSON 对象**，不要输出任何其他文字，不要用 markdown 围栏。结构：
 {
+  "reply": "给用户看的对话回复（你的引导提问，自然口语，中文）",
   "collected": {
-    "name": "..."或 null,
-    "title": "..."或 null,
-    "experiences": [...],
-    "projects": [...],
-    "skills": [...],
-    "education": [...],
-    "evidence": [...]
+    "name": 字符串或null, "title": 字符串或null, "email": 字符串或null, "phone": 字符串或null, "location": 字符串或null,
+    "experiences": [{"organization":"","role":"","startDate":"","endDate":"","title":""}],
+    "projects": [{"name":"","role":"","description":""}],
+    "skills": ["技能名"],
+    "education": [{"institution":"","degree":"","field":""}],
+    "evidence": ["从用户本轮陈述中提炼的可量化成果点，每条一句话"]
   },
-  "coveredDimensions": ["basics", ...],
-  "phase": "basics" | "experience" | "project" | "skill" | "education" | "evidence" | "ready"
+  "coveredDimensions": ["已采集到信息的维度名"],
+  "phase": "basics|experience|project|skill|education|evidence|ready"
 }
-\`\`\`
 
-其中 phase 表示当前正在采集哪个维度，ready 表示所有维度已覆盖。`;
+collected 只填本轮新获得或确认的信息，没有的字段填 null 或空数组；reply 字段里不要包含 JSON。`;
 
 // ─── 初始问候语 ──────────────────────────────────────────
 
@@ -77,12 +61,14 @@ export function buildOpeningMessage(): ChatMessage {
  */
 
 const LlmOutputSchema = z.object({
+  reply: z.string().default(""),
   collected: z
     .object({
       name: z.string().nullable().default(null),
       title: z.string().nullable().default(null),
       email: z.string().nullable().default(null),
       phone: z.string().nullable().default(null),
+      location: z.string().nullable().default(null),
       experiences: z
         .array(
           z.object({
@@ -136,21 +122,23 @@ export async function runIntakeRound(
     { role: "user", content: userMessage },
   ];
 
-  const { text } = await chat(route.conn, route.model, { messages, temperature: 0.7 });
+  const { text } = await chat(route.conn, route.model, { messages, temperature: 0.7, json: true });
 
-  // 提取 JSON 块
+  // 模型按 json mode 输出单一 JSON 对象（reply + collected + coveredDimensions + phase）
   let result: z.infer<typeof LlmOutputSchema>;
   const parsed = LlmOutputSchema.safeParse(extractJson(text));
   if (parsed.success) {
     result = parsed.data;
   } else {
-    result = { collected: { name: null, title: null, email: null, phone: null, experiences: [], projects: [], skills: [], education: [], evidence: [] }, coveredDimensions: [], phase: "basics" };
+    result = { reply: "", collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [], evidence: [] }, coveredDimensions: [], phase: "basics" };
   }
 
-  // 把对话写入 intake log
+  const replyText = result.reply.trim() || "抱歉，我没太理解，能再补充一下吗？";
+
+  // 把对话写入 intake log（assistant 存对用户可见的 reply，不存原始 JSON）
   await appendMessages(profileId, [
     { role: "user", content: userMessage },
-    { role: "assistant", content: text },
+    { role: "assistant", content: replyText },
   ]);
 
   // 把结构化信息 merge 进档案
@@ -164,10 +152,8 @@ export async function runIntakeRound(
     saveProfile(profile);
   }
 
-  // 返回对话回复（去掉 JSON 块）
-  const cleanReply = text.replace(/```json[\s\S]*?```/, "").trim() || text;
   return {
-    reply: cleanReply,
+    reply: replyText,
     coveredDimensions: profile.intakeStatus.coveredDimensions,
     phase: profile.intakeStatus.phase,
   };
@@ -183,6 +169,7 @@ function mergeCollected(
   if (collected.title) profile.title = collected.title;
   if (collected.email) profile.email = collected.email;
   if (collected.phone) profile.phone = collected.phone;
+  if (collected.location) profile.location = collected.location;
 
   for (const exp of collected.experiences) {
     const label = exp.organization + exp.role;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nanoid } from "nanoid";
 
 /**
  * 简历草稿——润色产出，DOCX 导出的源。
@@ -13,10 +14,10 @@ export const ResumeBulletSchema = z.object({
 });
 
 export const ResumeSectionSchema = z.object({
-  title: z.string(),
+  title: z.string().default(""),
   items: z.array(
     z.object({
-      id: z.string(),
+      id: z.string().default(() => nanoid(8)),
       organization: z.string().default(""),
       role: z.string().default(""),
       startDate: z.string().default(""),
