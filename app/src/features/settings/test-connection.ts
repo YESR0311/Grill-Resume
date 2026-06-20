@@ -1,6 +1,6 @@
 import "server-only";
 
-import { chat } from "@/features/ai/chat";
+import { chat, toUserMessage } from "@/features/ai/chat";
 import { getConnection } from "./store";
 import type { Connection } from "./types";
 
@@ -21,6 +21,7 @@ export async function testConnection(
     });
     return { ok: true, reply: text.slice(0, 100) };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    console.error("testConnection failed:", err);
+    return { ok: false, error: toUserMessage(err) };
   }
 }

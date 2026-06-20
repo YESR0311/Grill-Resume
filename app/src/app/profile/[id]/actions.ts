@@ -5,7 +5,14 @@ import { getProfile, saveProfile } from "@/features/profile/store";
 import type { PersonProfile } from "@/features/profile/types";
 
 export async function saveProfileAction(profileJson: string): Promise<{ ok: boolean }> {
-  const profile = JSON.parse(profileJson) as PersonProfile;
+  let profile: PersonProfile;
+  try {
+    profile = JSON.parse(profileJson) as PersonProfile;
+  } catch {
+    console.error("saveProfileAction: 非法 JSON");
+    return { ok: false };
+  }
+  if (!profile?.id) return { ok: false };
   saveProfile(profile);
   revalidatePath(`/profile/${profile.id}`);
   return { ok: true };

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { chat, requireTaskRoute, extractJson } from "@/features/ai/chat";
+import { chat, requireTaskRoute, extractJson, ProviderError } from "@/features/ai/chat";
 import { getProfile } from "@/features/profile/store";
 import { getEvaluationReport } from "@/features/evaluation/store";
 import { ResumeDraftSchema, type ResumeDraft } from "./types";
@@ -65,15 +65,21 @@ export async function runPolish(profileId: string): Promise<ResumeDraft> {
     json: true,
   });
 
-    const raw = extractJson(text);
-  const draft = ResumeDraftSchema.parse({
-    ...(raw as object),
+  const raw = extractJson<Record<string, unknown>>(text);
+  if (!raw || Object.keys(raw).length === 0) {
+    throw new ProviderError("简历生成失败：模型未返回有效内容，请重试");
+  }
+  const parsed = ResumeDraftSchema.safeParse({
+    ...raw,
     profileId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
+  if (!parsed.success) {
+    throw new ProviderError("简历生成失败：模型返回格式异常，请重试");
+  }
 
-  return draft;
+  return parsed.data;
 }
 
 // ─── 构建用户提示词 ──────────────────────────────────────

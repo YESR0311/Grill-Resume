@@ -39,9 +39,13 @@ export function ChatDialog({
 
     try {
       const data = await sendIntakeMessageAction(profileId, text);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-      if (data.ready) {
-        setTimeout(() => router.push(`/profile/${profileId}`), 1500);
+      if (data.error) {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.error! }]);
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+        if (data.ready) {
+          setTimeout(() => router.push(`/profile/${profileId}`), 1500);
+        }
       }
     } catch {
       setMessages((prev) => [

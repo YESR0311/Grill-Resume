@@ -14,6 +14,7 @@ type PageState =
 
 export function PolishView({ profileId }: { profileId: string }) {
   const [state, setState] = useState<PageState>({ status: "loading" });
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const generate = useCallback(async () => {
     setState({ status: "generating" });
@@ -39,6 +40,7 @@ export function PolishView({ profileId }: { profileId: string }) {
 
   const handleExport = async () => {
     if (state.status !== "done") return;
+    setExportError(null);
     setState({ status: "exporting", draft: state.draft });
     const result = await exportDocxAction(profileId);
     if (result.ok && result.buffer) {
@@ -52,7 +54,7 @@ export function PolishView({ profileId }: { profileId: string }) {
       a.click();
       URL.revokeObjectURL(url);
     } else {
-      alert(result.error ?? "导出失败");
+      setExportError(result.error ?? "导出失败");
     }
     setState((prev) => (prev.status === "exporting" ? { status: "done", draft: prev.draft } : prev));
   };
@@ -94,7 +96,7 @@ export function PolishView({ profileId }: { profileId: string }) {
     <div className="mx-auto w-full max-w-4xl">
       <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
         <h1 className="text-xl font-semibold">简历草稿</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-col items-end gap-1">
           <button
             onClick={handleExport}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
@@ -102,6 +104,7 @@ export function PolishView({ profileId }: { profileId: string }) {
             <FileDown size={15} />
             导出 Word
           </button>
+          {exportError && <p className="text-xs text-status-failed">{exportError}</p>}
         </div>
       </div>
 

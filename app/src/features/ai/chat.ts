@@ -19,10 +19,32 @@ export type SearchRequest = { query: string; maxResults?: number };
 export type SearchHit = { title: string; url: string; snippet: string };
 
 export class ProviderError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(message: string, readonly status?: number, readonly detail?: string) {
     super(message);
     this.name = "ProviderError";
   }
+}
+
+/** 按 HTTP 状态码生成消毒后的中文错误文案（不含上游响应体） */
+function providerErrorMessage(status: number): string {
+  if (status === 401 || status === 403) return "AI 认证失败：请检查 API Key 是否正确";
+  if (status === 404) return "AI 接口地址不存在：请检查 Base URL";
+  if (status === 429) return "请求过于频繁，请稍后再试";
+  if (status >= 500) return "AI 服务暂时不可用，请稍后重试";
+  return `AI 请求失败（状态码 ${status}）`;
+}
+
+/**
+ * 把任意错误转成可安全展示给用户的中文文案。
+ * ProviderError.message 已消毒可直接用；其余仅放行「短中文业务错误」，
+ * 避免把上游响应体 / 英文堆栈 / 含 key 片段的原始错误透传到客户端。
+ */
+export function toUserMessage(err: unknown): string {
+  if (err instanceof ProviderError) return err.message;
+  if (err instanceof Error && err.message && /[一-龥]/.test(err.message) && err.message.length <= 60) {
+    return err.message;
+  }
+  return "操作失败，请稍后重试";
 }
 
 // ─── AI 聊天 ─────────────────────────────────────────────
@@ -57,7 +79,9 @@ export async function chat(
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ProviderError(`AI 请求失败 (${res.status}): ${await safeBody(res)}`, res.status);
+    const detail = await safeBody(res);
+    console.error(`[chat] provider ${res.status}:`, detail);
+    throw new ProviderError(providerErrorMessage(res.status), res.status, detail);
   }
   const json = chatRespSchema.parse(await res.json());
   return { text: json.choices[0]?.message.content ?? "" };
@@ -68,7 +92,12 @@ export function extractJson<T = unknown>(text: string): T {
   let s = text.trim();
   const m = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (m) s = m[1].trim();
-  return JSON.parse(s) as T;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    // 模型未按要求输出 JSON 时返回空对象，由调用方的 schema 校验兜底
+    return {} as T;
+  }
 }
 
 // ─── 联网搜索（多渠道并发） ───────────────────────────────

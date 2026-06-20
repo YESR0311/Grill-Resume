@@ -4,14 +4,17 @@ import { runPolish } from "@/features/polish/engine";
 import { saveResumeDraft, getResumeDraft } from "@/features/polish/draft-store";
 import { buildDraftDocx } from "@/features/export/from-draft";
 import type { ResumeDraft } from "@/features/polish/types";
+import { toUserMessage } from "@/features/ai/chat";
 
 export async function runPolishAction(profileId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!profileId) return { ok: false, error: "档案无效" };
   try {
     const draft = await runPolish(profileId);
     await saveResumeDraft(draft);
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    console.error("runPolishAction failed:", err);
+    return { ok: false, error: toUserMessage(err) };
   }
 }
 
@@ -30,6 +33,7 @@ export async function exportDocxAction(profileId: string): Promise<{ ok: boolean
     const buffer = await buildDraftDocx(draft);
     return { ok: true, buffer: Array.from(buffer) };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    console.error("exportDocxAction failed:", err);
+    return { ok: false, error: toUserMessage(err) };
   }
 }
