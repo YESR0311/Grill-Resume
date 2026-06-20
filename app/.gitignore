@@ -42,3 +42,7 @@ next-env.d.ts
 
 # local workspace (resume data)
 .workspace/
+
+# 新架构本地数据（PII：问答日志 / 评估报告 / 润色草稿）
+/data/
+data/
