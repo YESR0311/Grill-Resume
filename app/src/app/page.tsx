@@ -1,19 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createProject, listProjects, listResumes } from "@/features/resume/storage";
-import { listProfiles } from "@/features/profile/store";
-import { DeleteProjectButton } from "@/components/workspace/DeleteProjectButton";
+import { listProfiles, createProfile } from "@/features/profile/store";
 import { nanoid } from "nanoid";
-import { createProfile } from "@/features/profile/store";
 
 export const dynamic = "force-dynamic";
-
-async function createProjectAction(formData: FormData) {
-  "use server";
-  const name = String(formData.get("name") ?? "");
-  const { project, resume } = await createProject({ name });
-  redirect(`/w/${project.id}/${resume.id}`);
-}
 
 async function createIntakeAction() {
   "use server";
@@ -23,16 +13,10 @@ async function createIntakeAction() {
 }
 
 /**
- * 首页：新旧双入口。新档案（三步流）和旧项目（单页工作区）。
+ * 首页：三步流入口（问答建档 → 评估 → 润色导出）。
  */
 export default function Home() {
-  const projects = listProjects();
   const profiles = listProfiles();
-  const resumeIdByProject: Record<string, string> = {};
-  for (const project of projects) {
-    const master = listResumes(project.id).find((r) => r.kind === "master");
-    if (master) resumeIdByProject[project.id] = master.id;
-  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
@@ -43,7 +27,7 @@ export default function Home() {
         </p>
       </header>
 
-      {/* 新：问答建档入口 */}
+      {/* 问答建档入口 */}
       <section className="rounded-xl border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-medium">开始三步流程（问答建档）</h2>
         <form action={createIntakeAction}>
@@ -70,50 +54,6 @@ export default function Home() {
               </Link>
             ))}
           </div>
-        )}
-      </section>
-
-      {/* 旧：项目入口 */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-muted-foreground">旧项目（单页工作区）</h2>
-        <form action={createProjectAction} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
-          <label htmlFor="name" className="text-sm font-medium">新建项目</label>
-          <div className="flex gap-2">
-            <input
-              id="name"
-              name="name"
-              required
-              placeholder="例如：2026 春招后端"
-              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-              创建
-            </button>
-          </div>
-        </form>
-        {projects.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
-            {projects.map((project) => {
-              const resumeId = resumeIdByProject[project.id];
-              const href = resumeId ? `/w/${project.id}/${resumeId}` : `/projects/${project.id}`;
-              return (
-                <li key={project.id} className="group flex items-center gap-1 pr-2 transition-colors hover:bg-secondary">
-                  <Link href={href} className="flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-3.5 text-sm">
-                    <span className="truncate font-medium">{project.name}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">打开 →</span>
-                  </Link>
-                  <DeleteProjectButton projectId={project.id} projectName={project.name} className="px-2 py-1 text-base opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100" />
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            暂无项目。
-          </p>
         )}
       </section>
 
