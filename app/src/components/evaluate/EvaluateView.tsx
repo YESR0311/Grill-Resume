@@ -133,6 +133,7 @@ function EvalCard({ item }: { item: EvaluationItem }) {
     unverifiable: { label: "不可信", color: "bg-status-failed/10 text-status-failed" },
     rare: { label: "稀缺", color: "bg-status-confirmed/10 text-status-confirmed" },
     common: { label: "常见", color: "bg-status-pending/10 text-status-pending" },
+    unknown: { label: "未知", color: "bg-muted text-muted-foreground" },
   };
 
   return (

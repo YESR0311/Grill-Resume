@@ -40,10 +40,12 @@ const POLISH_SYSTEM_PROMPT = `你是一位专业的简历润色顾问。你的�
       }
     ]
   },
-  "projects": { "title": "项目经历", "items": [] },
-  "education": { "title": "教育背景", "items": [] },
+  "projects": { "title": "项目经历", "items": [{ "organization": "项目名", "role": "角色", "bullets": [{ "text": "..." }] }] },
+  "education": { "title": "教育背景", "items": [{ "organization": "学校名", "role": "学位+专业", "startDate": "", "endDate": "" }] },
   "skills": ["技能1", "技能2"]
-}`;
+}
+
+重要：projects 和 education 的 items 必须根据用户档案如实填充，不要留空。education 每一项用 organization 填学校名、role 填「学位 专业」（例如「本科 计算机科学」）。`;
 
 // ─── 引擎 ────────────────────────────────────────────────
 

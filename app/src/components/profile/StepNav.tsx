@@ -26,7 +26,8 @@ export function StepNav({ profileId, current }: { profileId: string; current: St
         {STEPS.map((step, i) => {
           const isCurrent = step.key === current;
           const isDone = i < currentIdx;
-          const isReachable = i <= currentIdx;
+          // 线性流程允许自由前后导航（与各页面内「进入下一步」按钮一致）
+          const isReachable = true;
           const content = (
             <span
               className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${
