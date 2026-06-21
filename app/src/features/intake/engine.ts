@@ -1,8 +1,11 @@
 import "server-only";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { chat, extractJson, requireTaskRoute, type ChatMessage } from "@/features/ai/chat";
+import { PROMPTS_DIR } from "@/features/ai/prompts";
 import { getProfile, saveProfile, createProfile } from "@/features/profile/store";
 import type { PersonProfile } from "@/features/profile/types";
 import { getIntakeLog, appendMessages } from "./store";
@@ -12,36 +15,12 @@ import { getIntakeLog, appendMessages } from "./store";
 
 import { type IntakeDimension } from "./constants";
 
-// ─── 系统提示词（AI 行为约束核心） ──────────────────────
+// ─── 系统提示词（AI 行为约束核心，集中到 prompts/，design §6.3） ────
 
-const SYSTEM_PROMPT = `你是一位专业的简历辅导顾问，通过多轮对话引导用户梳理个人经历、构建人物档案。
+const SYSTEM_PROMPT = readFileSync(path.join(PROMPTS_DIR, "intake-system.md"), "utf8");
 
-## 工作方式
-1. 每轮：阅读对话历史 + 用户最新回答，提出 1-2 个引导性问题，逐步深入。
-2. 从基础（姓名、目标岗位、联系方式、城市）到经历细节（组织、角色、时间、可量化成果）、项目、技能、教育。
-3. 用户信息可纯文字，无需文件佐证；信息不够具体时追问可量化的细节。
-4. 覆盖全部维度后，将 phase 置为 "ready" 并在 reply 中告知用户可进入下一步。
-
-## 必须覆盖维度
-basics（姓名/岗位/联系方式/城市）、experience（工作经历）、project（项目）、skill（技能）、education（教育）、evidence（可量化成果/证据）
-
-## 输出要求（严格遵守）
-你必须**只输出一个 JSON 对象**，不要输出任何其他文字，不要用 markdown 围栏。结构：
-{
-  "reply": "给用户看的对话回复（你的引导提问，自然口语，中文）",
-  "collected": {
-    "name": 字符串或null, "title": 字符串或null, "email": 字符串或null, "phone": 字符串或null, "location": 字符串或null,
-    "experiences": [{"organization":"","role":"","startDate":"","endDate":"","title":""}],
-    "projects": [{"name":"","role":"","description":""}],
-    "skills": ["技能名"],
-    "education": [{"institution":"","degree":"","field":""}],
-    "evidence": ["从用户本轮陈述中提炼的可量化成果点，每条一句话"]
-  },
-  "coveredDimensions": ["已采集到信息的维度名"],
-  "phase": "basics|experience|project|skill|education|evidence|ready"
-}
-
-collected 只填本轮新获得或确认的信息，没有的字段填 null 或空数组；reply 字段里不要包含 JSON。`;
+// 对话历史截断：保留 system + 最近 N 轮（每轮 user+assistant，共 2 条），降低 token 消耗
+const MAX_HISTORY_TURNS = 10;
 
 // ─── 初始问候语 ──────────────────────────────────────────
 
@@ -49,7 +28,7 @@ export function buildOpeningMessage(): ChatMessage {
   return {
     role: "assistant",
     content:
-      "你好！我是你的简历辅导顾问。让我们从最简单的开始——你叫什么名字？你希望应聘什么样的岗位？",
+      "你好！我是你的简历辅导顾问。先请把你能想起来的经历、项目、技能、教育背景等尽可能详细地写出来，一次写多少都可以，之后我会逐步帮你补充完善。",
   };
 }
 
@@ -116,9 +95,11 @@ export async function runIntakeRound(
 
   const route = requireTaskRoute("intake");
 
+  // 截断：只发送最近 MAX_HISTORY_TURNS 轮（早期对话的关键信息已累积进 profile）
+  const recentHistory = log.messages.slice(-MAX_HISTORY_TURNS * 2);
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
-    ...log.messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...recentHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user", content: userMessage },
   ];
 

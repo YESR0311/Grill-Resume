@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getProfile } from "@/features/profile/store";
+import { getReachableSteps } from "@/features/profile/step-access";
 import { PolishView } from "@/components/polish/PolishView";
 import { StepNav } from "@/components/profile/StepNav";
 
@@ -15,9 +16,11 @@ export default async function PolishPage({ params }: Props) {
   const profile = getProfile(id);
   if (!profile) notFound();
 
+  const reachableSteps = await getReachableSteps(id);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <StepNav profileId={id} current="polish" />
+      <StepNav profileId={id} current="polish" reachableSteps={reachableSteps} />
       <div className="px-6 py-8">
         <PolishView profileId={id} />
       </div>

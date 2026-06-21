@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { resolveTaskConnection, getSearchProvider, listSearchProviders } from "@/features/settings/store";
+import { runSearch, type SearchHit } from "@/features/search/registry";
 import type { Connection, AITask } from "@/features/settings/types";
 
 // ─── 类型 ────────────────────────────────────────────────
@@ -16,7 +17,7 @@ export type ChatRequest = {
 export type ChatResult = { text: string };
 
 export type SearchRequest = { query: string; maxResults?: number };
-export type SearchHit = { title: string; url: string; snippet: string };
+export type { SearchHit };
 
 export class ProviderError extends Error {
   constructor(message: string, readonly status?: number, readonly detail?: string) {
@@ -127,6 +128,10 @@ export async function multiSearch(
   return hits;
 }
 
+/**
+ * 单渠道搜索：读取解密后的 provider 配置，委托给策略注册表（design §6.2）。
+ * 不再在此处分支 tavily/exa，新增渠道只需在 registry.ts registerProvider。
+ */
 async function searchWithProvider(
   providerId: string,
   query: string,
@@ -134,50 +139,7 @@ async function searchWithProvider(
 ): Promise<SearchHit[]> {
   const config = getSearchProvider(providerId);
   if (!config || !config.apiKey) return [];
-
-  if (config.kind === "tavily") {
-    return tavilySearch(config.baseUrl, config.apiKey, query, maxResults);
-  }
-  if (config.kind === "exa") {
-    return exaSearch(config.baseUrl, config.apiKey, query, maxResults);
-  }
-  return [];
-}
-
-async function tavilySearch(
-  baseUrl: string,
-  apiKey: string,
-  query: string,
-  maxResults = 5,
-): Promise<SearchHit[]> {
-  const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/search`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ api_key: apiKey, query, max_results: maxResults }),
-  });
-  if (!res.ok) return [];
-  const json = await res.json() as { results?: { title: string; url: string; content: string }[] };
-  return (json.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: r.content }));
-}
-
-async function exaSearch(
-  baseUrl: string,
-  apiKey: string,
-  query: string,
-  maxResults = 5,
-): Promise<SearchHit[]> {
-  const url = `${baseUrl.replace(/\/+$/, "")}/search`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-    },
-    body: JSON.stringify({ query, numResults: maxResults }),
-  });
-  if (!res.ok) return [];
-  const json = await res.json() as { results?: { title: string; url: string; snippet?: string }[] };
-  return (json.results ?? []).map((r) => ({ title: r.title ?? "", url: r.url ?? "", snippet: r.snippet ?? "" }));
+  return runSearch(config, query, maxResults);
 }
 
 // ─── 工具 ────────────────────────────────────────────────

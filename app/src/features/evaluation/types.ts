@@ -14,10 +14,14 @@ export const EvaluationItemSchema = z.object({
   // 原文本
   originalText: z.string().default(""),
 
-  // 评估结果
-  relevance: z.enum(["high", "medium", "low"]).default("medium"),
-  credibility: z.enum(["verified", "plausible", "unverifiable"]).default("plausible"),
-  scarcity: z.enum(["rare", "common", "unknown"]).default("unknown"),
+  // 评估结果（6 维数值评分，1-10，精确到 0.5；design §4.2）
+  relevance: z.number().min(1).max(10).default(5),     // 相关性
+  specificity: z.number().min(1).max(10).default(5),   // 具体性
+  credibility: z.number().min(1).max(10).default(5),   // 可信度
+  recency: z.number().min(1).max(10).default(5),       // 时效性
+  expression: z.number().min(1).max(10).default(5),    // 表达质量
+  scarcity: z.number().min(1).max(10).default(5),      // 稀缺性
+  overallScore: z.number().min(1).max(10).default(5),  // 综合分数
 
   // 联网佐证
   searchEvidence: z.string().default(""),   // 联网查到的内容摘要

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,8 +20,9 @@ export default function RootLayout({
       className={`h-full ${GeistSans.variable} ${GeistMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-full bg-background text-foreground antialiased">
-        {children}
+      <body className="flex min-h-full flex-col bg-background text-foreground antialiased">
+        <div className="flex-1">{children}</div>
+        <SiteFooter />
       </body>
     </html>
   );

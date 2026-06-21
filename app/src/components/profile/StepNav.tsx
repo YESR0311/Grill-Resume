@@ -17,8 +17,17 @@ const STEPS: { key: StepKey; label: string; href: (id: string) => string }[] = [
 
 const ORDER: StepKey[] = ["intake", "profile", "evaluate", "polish"];
 
-export function StepNav({ profileId, current }: { profileId: string; current: StepKey }) {
+export function StepNav({
+  profileId,
+  current,
+  reachableSteps,
+}: {
+  profileId: string;
+  current: StepKey;
+  reachableSteps: StepKey[];
+}) {
   const currentIdx = ORDER.indexOf(current);
+  const reachable = new Set<StepKey>(reachableSteps);
 
   return (
     <nav className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/80 px-6 py-3 backdrop-blur">
@@ -26,8 +35,8 @@ export function StepNav({ profileId, current }: { profileId: string; current: St
         {STEPS.map((step, i) => {
           const isCurrent = step.key === current;
           const isDone = i < currentIdx;
-          // 线性流程允许自由前后导航（与各页面内「进入下一步」按钮一致）
-          const isReachable = true;
+          // design §6.1：仅可达步骤允许跳转，未完成前序步骤的目标锁定
+          const isReachable = isCurrent || reachable.has(step.key);
           const content = (
             <span
               className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${

@@ -1,15 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { PanelLeftClose, PanelLeft, User } from "lucide-react";
+import { PanelLeftClose, PanelLeft, User, SkipForward, CheckCircle2, LogOut } from "lucide-react";
 import type { PersonProfile } from "@/features/profile/types";
 import { INTAKE_DIMENSIONS, INTAKE_DIMENSION_LABELS } from "@/features/intake/constants";
+import { Button } from "@/components/ui/button";
 
 /**
- * 可收纳左侧栏——问答页唯一除对话框外的元素。
- * 展示基本信息与问答进度，可折叠以腾出更多空间。
+ * 可收纳左侧栏——问答页除对话框外的唯一元素。
+ * 展示基本信息、问答进度，并提供「跳过/结束/退出」控制（design §3.2）。
+ * 结束问答 / 跳转时机由用户主动决定，AI 不代劳。
  */
-export function IntakeSidebar({ profile }: { profile: PersonProfile }) {
+export function IntakeSidebar({
+  profile,
+  pendingEnd = false,
+  endDisabled = false,
+  endDisabledHint,
+  onSkip,
+  onEnd,
+  onExit,
+}: {
+  profile: PersonProfile;
+  pendingEnd?: boolean;
+  /** 出口（跳过/结束）禁用：首页建档前 profileId 尚不存在时为 true（P1-b）。 */
+  endDisabled?: boolean;
+  /** 禁用时的提示文案。 */
+  endDisabledHint?: string;
+  onSkip?: () => void;
+  onEnd?: () => void;
+  onExit?: () => void;
+}) {
   const [collapsed, setCollapsed] = useState(false);
 
   if (collapsed) {
@@ -54,7 +74,7 @@ export function IntakeSidebar({ profile }: { profile: PersonProfile }) {
               <div key={dim} className="flex items-center gap-2">
                 <div
                   className={`h-2 w-2 rounded-full ${
-                    done ? "bg-status-confirmed" : "bg-muted-foreground/30"
+                    done ? "bg-status-confirmed" : "bg-muted"
                   }`}
                 />
                 <span
@@ -69,11 +89,44 @@ export function IntakeSidebar({ profile }: { profile: PersonProfile }) {
           })}
         </div>
 
-        {profile.intakeStatus.phase === "ready" ? (
-          <p className="mt-4 rounded-lg bg-status-confirmed/10 px-2.5 py-1.5 text-xs text-status-confirmed">
-            所有维度已覆盖，即将跳转档案编辑页…
+        {pendingEnd ? (
+          <p className="mt-4 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-muted-foreground">
+            正在输入中，提交后将自动前往档案编辑…
           </p>
         ) : null}
+
+        {endDisabled && endDisabledHint ? (
+          <p className="mt-4 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-muted-foreground">
+            {endDisabledHint}
+          </p>
+        ) : null}
+      </div>
+
+      {/* 控制区：用户主动决定何时结束 */}
+      <div className="flex flex-col gap-2 border-t border-border px-3 py-3">
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full justify-start"
+          onClick={onSkip}
+          disabled={endDisabled}
+        >
+          <SkipForward size={15} />
+          跳过当前问题
+        </Button>
+        <Button
+          size="lg"
+          className="w-full justify-start"
+          onClick={onEnd}
+          disabled={endDisabled}
+        >
+          <CheckCircle2 size={15} />
+          结束问答
+        </Button>
+        <Button variant="ghost" size="lg" className="w-full justify-start" onClick={onExit}>
+          <LogOut size={15} />
+          退出
+        </Button>
       </div>
     </aside>
   );

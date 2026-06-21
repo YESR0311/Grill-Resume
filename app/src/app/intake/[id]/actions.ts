@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { runIntakeRound } from "@/features/intake/engine";
 import { getIntakeLog } from "@/features/intake/store";
 import { toUserMessage } from "@/features/ai/chat";
@@ -11,6 +12,8 @@ export async function sendIntakeMessageAction(
   if (!profileId) return { reply: "", phase: "error", ready: false, error: "会话无效，请重新开始" };
   try {
     const result = await runIntakeRound(profileId, userMessage);
+    revalidatePath(`/intake/${profileId}`);
+    revalidatePath(`/profile/${profileId}`);
     return {
       reply: result.reply,
       phase: result.phase,

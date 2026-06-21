@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { getProfile } from "@/features/profile/store";
 import { getIntakeLog } from "@/features/intake/store";
 import { buildOpeningMessage } from "@/features/intake/engine";
-import { ChatDialog } from "@/components/intake/ChatDialog";
-import { IntakeSidebar } from "@/components/intake/IntakeSidebar";
+import { IntakeWorkspace } from "@/components/intake/IntakeWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +24,5 @@ export default async function IntakePage({ params }: Props) {
       ? log.messages.map((m) => ({ role: m.role, content: m.content }))
       : [{ role: "assistant" as const, content: buildOpeningMessage().content }];
 
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <IntakeSidebar profile={profile} />
-      <main className="flex flex-1 flex-col">
-        <ChatDialog profileId={id} initialMessages={messages} />
-      </main>
-    </div>
-  );
+  return <IntakeWorkspace profile={profile} initialMessages={messages} />;
 }

@@ -1,20 +1,21 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { runPolish } from "@/features/polish/engine";
 import { saveResumeDraft, getResumeDraft } from "@/features/polish/draft-store";
-import { buildDraftDocx } from "@/features/export/from-draft";
 import type { ResumeDraft } from "@/features/polish/types";
-import { toUserMessage } from "@/features/ai/chat";
+import { actionError, actionSuccess, type ActionResult } from "@/lib/server-action";
 
-export async function runPolishAction(profileId: string): Promise<{ ok: boolean; error?: string }> {
+export async function runPolishAction(profileId: string): Promise<ActionResult> {
   if (!profileId) return { ok: false, error: "档案无效" };
   try {
     const draft = await runPolish(profileId);
     await saveResumeDraft(draft);
-    return { ok: true };
+    revalidatePath(`/polish/${profileId}`);
+    return actionSuccess(undefined);
   } catch (err) {
     console.error("runPolishAction failed:", err);
-    return { ok: false, error: toUserMessage(err) };
+    return actionError(err);
   }
 }
 
@@ -22,18 +23,13 @@ export async function getDraftAction(profileId: string): Promise<ResumeDraft | n
   return getResumeDraft(profileId);
 }
 
-export async function saveDraftAction(draft: ResumeDraft): Promise<void> {
-  await saveResumeDraft(draft);
-}
-
-export async function exportDocxAction(profileId: string): Promise<{ ok: boolean; buffer?: number[]; error?: string }> {
+export async function saveDraftAction(draft: ResumeDraft): Promise<ActionResult> {
   try {
-    const draft = await getResumeDraft(profileId);
-    if (!draft) return { ok: false, error: "尚未生成简历草稿" };
-    const buffer = await buildDraftDocx(draft);
-    return { ok: true, buffer: Array.from(buffer) };
+    await saveResumeDraft(draft);
+    revalidatePath(`/polish/${draft.profileId}`);
+    return actionSuccess(undefined);
   } catch (err) {
-    console.error("exportDocxAction failed:", err);
-    return { ok: false, error: toUserMessage(err) };
+    console.error("saveDraftAction failed:", err);
+    return actionError(err);
   }
 }

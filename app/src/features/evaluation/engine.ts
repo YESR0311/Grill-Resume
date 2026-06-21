@@ -1,91 +1,164 @@
 import "server-only";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { nanoid } from "nanoid";
-import { chat, requireTaskRoute, multiSearch, extractJson } from "@/features/ai/chat";
-import { getProfile, saveProfile } from "@/features/profile/store";
-import { EvaluationReportSchema, type EvaluationReport, type EvaluationItem } from "./types";
+import { z } from "zod";
+import { chat, requireTaskRoute, multiSearch, extractJson, type SearchHit } from "@/features/ai/chat";
+import { PROMPTS_DIR } from "@/features/ai/prompts";
+import { getProfile } from "@/features/profile/store";
+import { getDb } from "@/lib/db";
+import { EvaluationItemSchema, type EvaluationItem } from "./types";
 
-// ─── 系统提示词 ──────────────────────────────────────────
+// ─── 系统提示词（集中到 prompts/，design §6.3） ──────────────
 
-const EVALUATE_SYSTEM_PROMPT = `你是一位专业的简历评估顾问。你的任务是对档案中的每段经历要点进行逐条评估。
+const EVALUATE_SYSTEM_PROMPT = readFileSync(path.join(PROMPTS_DIR, "evaluate-system.md"), "utf8");
 
-对于每一条要点，你需要评估：
-1. **相关性 (relevance)**：这条经历与目标岗位的相关性（high / medium / low）
-2. **可信度 (credibility)**：是否有可验证的具体信息（verified / plausible / unverifiable）
-3. **稀缺性 (scarcity)**：这项技能在市场上的稀缺程度（rare / common / unknown）
-4. **改进建议 (suggestion)**：如何改写这条要点使其更有说服力
-5. **建议改写 (suggestedRewrite)**：直接给出改写后的版本
+// 单条 LLM 评估结果（6 维数值，design §4.2）
+const SingleEvalSchema = z.object({
+  relevance: z.number().min(1).max(10).default(5),
+  specificity: z.number().min(1).max(10).default(5),
+  credibility: z.number().min(1).max(10).default(5),
+  recency: z.number().min(1).max(10).default(5),
+  expression: z.number().min(1).max(10).default(5),
+  scarcity: z.number().min(1).max(10).default(5),
+  overallScore: z.number().min(1).max(10).default(5),
+  searchEvidence: z.string().default(""),
+  suggestion: z.string().default(""),
+  suggestedRewrite: z.string().default(""),
+});
 
-你还会收到联网搜索的结果作为佐证。引用这些结果时注明来源。
+// ─── Phase 1：每 session 一次联网研究（design §4.2） ───────────
 
-输出严格 JSON 格式：
-{
-  "items": [
-    {
-      "targetType": "experience",
-      "targetId": "...",
-      "originalText": "...",
-      "relevance": "medium",
-      "credibility": "plausible",
-      "scarcity": "unknown",
-      "searchEvidence": "...",
-      "suggestion": "...",
-      "suggestedRewrite": "..."
-    }
-  ],
-  "overallSummary": "总体评价..."
-}`;
-
-// ─── 引擎 ────────────────────────────────────────────────
-
-export async function runEvaluation(profileId: string): Promise<EvaluationReport> {
+/**
+ * 评估会话：仅 1 次联网研究（研究岗位评估框架，非 per bullet），
+ * 创建/重建 evaluation_reports 行，返回待逐条评估的 bulletIds + 共享 searchContext。
+ */
+export async function runEvaluationSession(
+  profileId: string,
+): Promise<{ reportId: string; bulletIds: string[]; searchContext: string }> {
   const profile = getProfile(profileId);
   if (!profile) throw new Error("档案不存在");
   if (profile.experiences.length === 0) throw new Error("无经历可评估");
 
-  const route = requireTaskRoute("evaluate");
-
-  const items: EvaluationItem[] = [];
-
-  // 逐条经历评估
+  // 收集所有 bulletId
+  const bulletIds: string[] = [];
   for (const exp of profile.experiences) {
     for (const bullet of exp.bullets) {
-      const searchHits = await multiSearch(
-        `${bullet.text} ${exp.organization} ${exp.role}`,
-        3,
-      );
-
-      items.push({
-        id: nanoid(8),
-        targetType: "experience",
-        targetId: exp.id,
-        bulletId: bullet.id,
-        originalText: bullet.text,
-        relevance: "medium",
-        credibility: "plausible",
-        scarcity: "unknown",
-        searchEvidence: searchHits.map((h) => `[${h.title}](${h.url}): ${h.snippet}`).join("\n"),
-        searchSources: searchHits.map((h) => h.url),
-        suggestion: "",
-        suggestedRewrite: "",
-        status: "searching",
-      });
+      bulletIds.push(bullet.id);
     }
   }
+  if (bulletIds.length === 0) throw new Error("无经历要点可评估");
 
-  // 批量 LLM 评估（每次 3-5 条一起送，减少调用）
-  const BATCH_SIZE = 5;
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
+  // Phase 1 联网研究：研究该岗位的评估方法论/成熟案例（每 session 1 次）
+  const searchContext = await researchEvaluationContext(profile.title, bulletIds, profile);
 
-    const userPrompt = `请评估以下经历要点（目标岗位：${profile.title || "未指定"}）：\n\n` +
-      batch
-        .map(
-          (item, idx) =>
-            `【${i + idx + 1}】\n原文：${item.originalText}\n联网佐证：${item.searchEvidence || "无"}\n`,
-        )
-        .join("\n");
+  // 创建/重建 evaluation_reports 行 + 清空旧 items（同步 better-sqlite3）
+  const db = getDb();
+  const now = new Date().toISOString();
+  const existing = db
+    .prepare("SELECT id FROM evaluation_reports WHERE profile_id = ?")
+    .get(profileId) as { id: string } | undefined;
 
+  let reportId: string;
+  if (existing) {
+    reportId = existing.id;
+    db.prepare("DELETE FROM evaluation_items WHERE report_id = ?").run(reportId);
+    db.prepare("UPDATE evaluation_reports SET updated_at = ? WHERE id = ?").run(now, reportId);
+  } else {
+    reportId = nanoid(10);
+    db.prepare(
+      `INSERT INTO evaluation_reports (id, profile_id, overall_summary, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(reportId, profileId, "", now, now);
+  }
+
+  return { reportId, bulletIds, searchContext };
+}
+
+/**
+ * Phase 1 查询构造（design §4.2）：
+ * - job_title 有值 → "{job_title} resume bullet evaluation criteria {industry}"
+ * - 为空 → 用 bullet 关键词 "{bullet_keyword} resume evaluation"
+ * 每 query 各 1 次搜索、最多 3 结果；两 query 均失败/超时 → 返回空上下文（不阻塞 Phase 2）。
+ */
+async function researchEvaluationContext(
+  jobTitle: string,
+  bulletIds: string[],
+  profile: NonNullable<ReturnType<typeof getProfile>>,
+): Promise<string> {
+  const queries: string[] = [];
+  if (jobTitle.trim()) {
+    queries.push(`${jobTitle} resume bullet evaluation criteria`);
+  } else {
+    // 取首条 bullet 的前几个词作为关键词
+    const firstBullet = profile.experiences.flatMap((e) => e.bullets)[0];
+    const keyword = (firstBullet?.text ?? "").split(/\s+/).slice(0, 4).join(" ").trim();
+    if (keyword) queries.push(`${keyword} resume evaluation`);
+  }
+  if (queries.length === 0) return "";
+
+  const results = await Promise.allSettled(queries.map((q) => multiSearch(q, 3)));
+  const hits: SearchHit[] = [];
+  const seen = new Set<string>();
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      for (const h of r.value.slice(0, 3)) {
+        if (!seen.has(h.url)) {
+          seen.add(h.url);
+          hits.push(h);
+        }
+      }
+    }
+  }
+  if (hits.length === 0) return "";
+  return hits.map((h) => `[${h.title}](${h.url}): ${h.snippet}`).join("\n");
+}
+
+// ─── Phase 2：逐条 LLM 评估，直接写规范化表（design §4.2） ─────
+
+/**
+ * 单条评估：复用 Phase 1 的 searchContext，对一条 bullet 做 6 维 LLM 评估，
+ * UPSERT 进 evaluation_items 规范化表，返回单条 item。
+ */
+export async function evaluateOneItem(
+  profileId: string,
+  bulletId: string,
+  searchContext: string,
+): Promise<EvaluationItem> {
+  const profile = getProfile(profileId);
+  if (!profile) throw new Error("档案不存在");
+
+  // 定位 bullet 及其所属经历
+  let originalText = "";
+  let targetId = "";
+  for (const exp of profile.experiences) {
+    const b = exp.bullets.find((x) => x.id === bulletId);
+    if (b) {
+      originalText = b.text;
+      targetId = exp.id;
+      break;
+    }
+  }
+  if (!targetId) throw new Error("要点不存在");
+
+  const db = getDb();
+  const report = db
+    .prepare("SELECT id FROM evaluation_reports WHERE profile_id = ?")
+    .get(profileId) as { id: string } | undefined;
+  if (!report) throw new Error("评估会话不存在，请重新开始评估");
+  const reportId = report.id;
+
+  const route = requireTaskRoute("evaluate");
+
+  const userPrompt =
+    `目标岗位：${profile.title || "未指定"}\n\n` +
+    `## 待评估 bullet 原文\n${originalText}\n\n` +
+    `## 联网参考（该岗位评估方法论/成熟案例，可能为空）\n${searchContext || "无"}\n`;
+
+  let evalResult: z.infer<typeof SingleEvalSchema>;
+  let status: EvaluationItem["status"] = "done";
+  try {
     const { text } = await chat(route.conn, route.model, {
       messages: [
         { role: "system", content: EVALUATE_SYSTEM_PROMPT },
@@ -94,61 +167,82 @@ export async function runEvaluation(profileId: string): Promise<EvaluationReport
       temperature: 0.3,
       json: true,
     });
-
-    // 解析批量评估结果
-    try {
-      const resultSchema = EvaluationReportSchema;
-      const batchResult = resultSchema.parse(extractJson(text));
-      for (let j = 0; j < batchResult.items.length && j < batch.length; j++) {
-        const idx = i + j;
-        items[idx] = {
-          ...items[idx],
-          relevance: batchResult.items[j].relevance,
-          credibility: batchResult.items[j].credibility,
-          scarcity: batchResult.items[j].scarcity,
-          suggestion: batchResult.items[j].suggestion,
-          suggestedRewrite: batchResult.items[j].suggestedRewrite,
-          status: "done",
-        };
-      }
-    } catch {
-      // 解析失败，标记 failed
-      for (let j = 0; j < batch.length; j++) {
-        items[i + j].status = "failed";
-      }
+    const parsed = SingleEvalSchema.safeParse(extractJson(text));
+    if (parsed.success) {
+      evalResult = parsed.data;
+    } else {
+      // JSON 格式漂移：回退默认分值 5（design §七风险）
+      evalResult = SingleEvalSchema.parse({});
+      status = "failed";
     }
-  }
-
-  // 总体评价
-  let overallSummary = "";
-  try {
-    const { text: summaryText } = await chat(route.conn, route.model, {
-      messages: [
-        { role: "system", content: "你是简历评估专家。用一段话总结以下经历的总体质量，优缺点和改进方向。" },
-        {
-          role: "user",
-          content: `目标岗位：${profile.title || "未指定"}\n经历要点：${items
-            .map((i) => `- ${i.originalText}（${i.relevance} / ${i.credibility}）`)
-            .join("\n")}`,
-        },
-      ],
-      temperature: 0.3,
-    });
-    overallSummary = summaryText;
   } catch {
-    overallSummary = "总体评估生成失败。";
+    evalResult = SingleEvalSchema.parse({});
+    status = "failed";
   }
 
-  const report: EvaluationReport = EvaluationReportSchema.parse({
-    profileId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    items,
-    overallSummary,
+  const item: EvaluationItem = EvaluationItemSchema.parse({
+    id: nanoid(8),
+    targetType: "experience",
+    targetId,
+    bulletId,
+    originalText,
+    relevance: evalResult.relevance,
+    specificity: evalResult.specificity,
+    credibility: evalResult.credibility,
+    recency: evalResult.recency,
+    expression: evalResult.expression,
+    scarcity: evalResult.scarcity,
+    overallScore: evalResult.overallScore,
+    searchEvidence: evalResult.searchEvidence || searchContext,
+    searchSources: [],
+    suggestion: evalResult.suggestion,
+    suggestedRewrite: evalResult.suggestedRewrite,
+    status,
   });
 
-  profile.intakeStatus.phase = "ready";
-  saveProfile(profile);
+  // UPSERT 进规范化表：依赖 (report_id, bullet_id) 唯一索引，ON CONFLICT 原子更新，
+  // 消除原先 DELETE+INSERT 之间的竞态（Sprint 6 额外修复）。
+  db.prepare(
+    `INSERT INTO evaluation_items
+       (id, report_id, target_type, target_id, bullet_id, original_text,
+        relevance, specificity, credibility, recency, expression, scarcity, overall_score,
+        search_evidence, suggestion, suggested_rewrite, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(report_id, bullet_id) DO UPDATE SET
+       id = excluded.id,
+       target_type = excluded.target_type,
+       target_id = excluded.target_id,
+       original_text = excluded.original_text,
+       relevance = excluded.relevance,
+       specificity = excluded.specificity,
+       credibility = excluded.credibility,
+       recency = excluded.recency,
+       expression = excluded.expression,
+       scarcity = excluded.scarcity,
+       overall_score = excluded.overall_score,
+       search_evidence = excluded.search_evidence,
+       suggestion = excluded.suggestion,
+       suggested_rewrite = excluded.suggested_rewrite,
+       status = excluded.status`,
+  ).run(
+    item.id,
+    reportId,
+    item.targetType,
+    item.targetId,
+    item.bulletId ?? null,
+    item.originalText,
+    item.relevance,
+    item.specificity,
+    item.credibility,
+    item.recency,
+    item.expression,
+    item.scarcity,
+    item.overallScore,
+    item.searchEvidence,
+    item.suggestion,
+    item.suggestedRewrite,
+    item.status,
+  );
 
-  return report;
+  return item;
 }
