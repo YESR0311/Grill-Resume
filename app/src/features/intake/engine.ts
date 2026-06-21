@@ -51,6 +51,9 @@ const LlmOutputSchema = z.object({
       experiences: z
         .array(
           z.object({
+            // 已有经历的稳定 id：LLM 补充某段既有经历时回传该 id，merge 按 id 精确匹配；
+            // 全新经历留空，merge 退化为归一化 label 匹配（向后兼容，LLM 不回传 id 不崩）
+            id: z.string().optional().default(""),
             organization: z.string().default(""),
             role: z.string().default(""),
             startDate: z.string().default(""),
@@ -97,8 +100,15 @@ export async function runIntakeRound(
 
   // 截断：只发送最近 MAX_HISTORY_TURNS 轮（早期对话的关键信息已累积进 profile）
   const recentHistory = log.messages.slice(-MAX_HISTORY_TURNS * 2);
+
+  // 注入「已采集经历摘要」context：让 LLM 补充某段既有经历时回传其 id，merge 按 id 精确匹配，
+  // 避免同一经历因 organization 跨轮时有时无（label 波动）被重复创建、bullets 分散。
+  // 每轮重新生成（反映最新档案）；不写入 intake log、不受 MAX_HISTORY_TURNS 截断。
+  const contextMsg: ChatMessage = { role: "system", content: buildExperienceDigest(profile) };
+
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    contextMsg,
     ...recentHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user", content: userMessage },
   ];
@@ -140,7 +150,36 @@ export async function runIntakeRound(
   };
 }
 
+// ─── 经历摘要注入 ──────────────────────────────────────────
+
+/**
+ * 生成「已采集经历」摘要，供 LLM 回传稳定经历 id（方案 b）。
+ * 列出每段经历的 id|organization|role|startDate；无经历时给占位文案。
+ */
+function buildExperienceDigest(profile: PersonProfile): string {
+  if (!profile.experiences.length) {
+    return "【当前尚无已采集经历】";
+  }
+  const lines = profile.experiences
+    .map((e) => {
+      const org = e.organization || "(未填机构)";
+      const role = e.role || "(未填角色)";
+      const date = e.startDate ? ` | ${e.startDate}` : "";
+      return `- id=${e.id} | ${org} | ${role}${date}`;
+    })
+    .join("\n");
+  return `【已采集经历，补充其成果/信息时请在该经历对象里带上对应 id】\n${lines}`;
+}
+
 // ─── Merge ────────────────────────────────────────────────
+
+/**
+ * 经历匹配键归一化：trim + 转小写 + 连续空白折叠为单空格。
+ * 用于「无 id」回退路径，吸收大小写/空白差异导致的 label 波动。
+ */
+function normalizeLabel(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 /**
  * 把一段经历的成果点（bullets）去重 append 到目标 experience。
@@ -176,8 +215,20 @@ export function mergeCollected(
   if (collected.location) profile.location = collected.location;
 
   for (const exp of collected.experiences) {
-    const label = exp.organization + exp.role;
-    let target = profile.experiences.find((e) => e.organization + e.role === label);
+    // 三级匹配优先级（design §2.5）：
+    //   ① exp.id 非空且 profile 已有该 id → 命中（精确，方案 b 主路径）
+    //   ② 归一化 label：normalize(org||title)+normalize(role) → 命中（无 id 回退，吸收大小写/空白波动）
+    //   ③ 都未命中 → 新建
+    let target: PersonProfile["experiences"][number] | undefined;
+    if (exp.id) {
+      target = profile.experiences.find((e) => e.id === exp.id);
+    }
+    if (!target) {
+      const label = normalizeLabel(exp.organization || exp.title) + "|" + normalizeLabel(exp.role);
+      target = profile.experiences.find(
+        (e) => normalizeLabel(e.organization) + "|" + normalizeLabel(e.role) === label,
+      );
+    }
     if (!target) {
       target = {
         id: nanoid(8),
@@ -188,6 +239,14 @@ export function mergeCollected(
         bullets: [],
       };
       profile.experiences.push(target);
+    } else {
+      // 命中已有经历：补全此前为空的字段，不覆盖已有非空值（避免后续轮把已填信息抹掉）
+      if (!target.organization && (exp.organization || exp.title)) {
+        target.organization = exp.organization || exp.title;
+      }
+      if (!target.role && exp.role) target.role = exp.role;
+      if (!target.startDate && exp.startDate) target.startDate = exp.startDate;
+      if (!target.endDate && exp.endDate) target.endDate = exp.endDate;
     }
     // 成果点按结构嵌套天然归属该经历，去重 append（含新建经历自带 bullets）
     appendBullets(target, exp.bullets);

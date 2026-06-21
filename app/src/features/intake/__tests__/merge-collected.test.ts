@@ -35,6 +35,7 @@ function test(name: string, fn: () => void): void {
 type Collected = Parameters<typeof mergeCollected>[1];
 function collected(
   experiences: Array<{
+    id?: string;
     organization?: string;
     role?: string;
     startDate?: string;
@@ -50,6 +51,7 @@ function collected(
     phone: null,
     location: null,
     experiences: experiences.map((e) => ({
+      id: e.id ?? "",
       organization: e.organization ?? "",
       role: e.role ?? "",
       startDate: e.startDate ?? "",
@@ -169,6 +171,92 @@ test("bullet 结构含 evidence 子项（content=text）", () => {
   assert.equal(bullet.evidence.length, 1);
   assert.equal(bullet.evidence[0].type, "text");
   assert.equal(bullet.evidence[0].content, "量化成果 X");
+});
+
+// ─── 方案 b：稳定 id 匹配 + 归一化 label 回退（label-match） ─────────────
+
+test("带 id 命中已有经历：org 本轮缺失也命中，不重复创建", () => {
+  const profile = createEmptyProfile({ id: "lm1" });
+  // 第一轮：完整经历，记下其 id
+  mergeCollected(
+    profile,
+    collected([{ organization: "公司A", role: "工程师", bullets: ["把延迟降低 40%"] }]),
+  );
+  assert.equal(profile.experiences.length, 1);
+  const expId = profile.experiences[0].id;
+  // 第二轮：organization 缺失（label 会变），但 LLM 回传 id → 仍命中同一段
+  mergeCollected(
+    profile,
+    collected([{ id: expId, organization: "", role: "工程师", bullets: ["上线支付模块"] }]),
+  );
+  assert.equal(profile.experiences.length, 1, "带 id 应命中已有经历，不重复创建");
+  assert.deepEqual(bulletsOf(profile, "公司A", "工程师"), ["把延迟降低 40%", "上线支付模块"]);
+});
+
+test("无 id 但归一化 label 命中（大小写/空白差异）", () => {
+  const profile = createEmptyProfile({ id: "lm2" });
+  mergeCollected(
+    profile,
+    collected([{ organization: "Acme Corp", role: "Engineer", bullets: ["A 成果"] }]),
+  );
+  // 第二轮：大小写 + 多余空白差异，无 id → 归一化 label 命中
+  mergeCollected(
+    profile,
+    collected([{ organization: "acme   corp", role: "  ENGINEER ", bullets: ["B 成果"] }]),
+  );
+  assert.equal(profile.experiences.length, 1, "归一化 label 应命中，不重复创建");
+  assert.deepEqual(bulletsOf(profile, "Acme Corp", "Engineer"), ["A 成果", "B 成果"]);
+});
+
+test("无 id 无 label 命中 → 新建", () => {
+  const profile = createEmptyProfile({ id: "lm3" });
+  mergeCollected(
+    profile,
+    collected([{ organization: "公司A", role: "工程师", bullets: ["A 成果"] }]),
+  );
+  mergeCollected(
+    profile,
+    collected([{ organization: "公司B", role: "经理", bullets: ["B 成果"] }]),
+  );
+  assert.equal(profile.experiences.length, 2, "不同经历应各自新建");
+});
+
+test("命中后补全此前为空字段，不覆盖已有非空值", () => {
+  const profile = createEmptyProfile({ id: "lm4" });
+  // 第一轮：org 为空靠 title 兜底，startDate 缺失
+  mergeCollected(
+    profile,
+    collected([{ organization: "", title: "公司A", role: "工程师", bullets: ["A 成果"] }]),
+  );
+  const exp0 = profile.experiences[0];
+  assert.equal(exp0.organization, "公司A", "title 兜底写入 organization");
+  assert.equal(exp0.startDate, "");
+  const expId = exp0.id;
+  // 第二轮：带 id 命中，本轮补 startDate（之前空）+ 试图改 organization（已非空，应不覆盖）
+  mergeCollected(
+    profile,
+    collected([
+      { id: expId, organization: "公司A正式名", role: "工程师", startDate: "2020-01", bullets: [] },
+    ]),
+  );
+  assert.equal(profile.experiences.length, 1);
+  assert.equal(exp0.organization, "公司A", "已有非空 organization 不被覆盖");
+  assert.equal(exp0.startDate, "2020-01", "此前为空的 startDate 被补全");
+});
+
+test("id 失效（profile 无此 id）回退归一化 label 匹配", () => {
+  const profile = createEmptyProfile({ id: "lm5" });
+  mergeCollected(
+    profile,
+    collected([{ organization: "公司A", role: "工程师", bullets: ["A 成果"] }]),
+  );
+  // LLM 回传了一个不存在的 id，但 org/role 一致 → 应回退 label 命中，不重复创建
+  mergeCollected(
+    profile,
+    collected([{ id: "nonexistent", organization: "公司A", role: "工程师", bullets: ["B 成果"] }]),
+  );
+  assert.equal(profile.experiences.length, 1, "id 失效应回退 label 匹配");
+  assert.deepEqual(bulletsOf(profile, "公司A", "工程师"), ["A 成果", "B 成果"]);
 });
 
 console.log(`\nmerge-collected: ${passed} passed, ${failed} failed`);
