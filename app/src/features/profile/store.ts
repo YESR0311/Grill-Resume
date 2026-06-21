@@ -7,12 +7,11 @@ import { createEmptyProfile, PersonProfileSchema, type PersonProfile } from "./t
 /**
  * 人物档案存储库（一等实体，SQLite）。
  *
- * Sprint 6.3/6.5 Phase 2：从单 blob 列拆为规范化子表（experiences/experience_bullets/
- * resume_projects/skill_groups/skills/education），读路径在 API 层重建嵌套对象。
- *
- * 双写策略（保留回滚形状）：
- * - 写：profiles.data blob（兼容/回滚） + 规范化子表（主存储）。
- * - 读：优先从规范化子表重建；子表为空时回落 blob（兼容 Phase 1 旧数据）。
+ * Phase 3（db v3）：profiles 已去掉 data 兼容 blob 列。
+ * - 基础字段（name/title/email/phone/location/summary）落 profiles 实列；
+ * - intakeStatus 作小型结构化 JSON 列 intake_status 持久化；
+ * - 嵌套子实体（experiences/experience_bullets/resume_projects/skill_groups/skills/education）
+ *   全走规范化子表，读路径在 API 层重建嵌套对象。
  *
  * 物理表 resume_projects（避与旧死代码表 projects 同名）在重建时映射回逻辑属性
  * projects[]，前端组件无需感知表名（design §6.1）。
@@ -93,26 +92,43 @@ type SgRow = { id: string; category: string | null };
 type SkillRow = { skill_group_id: string; name: string | null };
 type EduRow = { id: string; institution: string | null; degree: string | null; field: string | null; start_date: string | null; end_date: string | null };
 
+type MetaRow = {
+  id: string;
+  name: string | null;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  summary: string | null;
+  intake_status: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function parseIntakeStatus(raw: string | null): PersonProfile["intakeStatus"] {
+  const fallback = { phase: "basics" as const, coveredDimensions: [] as string[], totalRounds: 0 };
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    const candidate = PersonProfileSchema.shape.intakeStatus.safeParse(parsed);
+    return candidate.success ? candidate.data : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function readNormalized(id: string): PersonProfile | null {
   const db = getDb();
   const meta = db
-    .prepare("SELECT id, data, created_at, updated_at FROM profiles WHERE id = ?")
-    .get(id) as { id: string; data: string; created_at: string; updated_at: string } | undefined;
+    .prepare(
+      "SELECT id, name, title, email, phone, location, summary, intake_status, created_at, updated_at FROM profiles WHERE id = ?",
+    )
+    .get(id) as MetaRow | undefined;
   if (!meta) return null;
 
   const expRows = db
     .prepare("SELECT id, organization, role, start_date, end_date FROM experiences WHERE profile_id = ? ORDER BY idx, rowid")
     .all(id) as ExpRow[];
-
-  // 子表为空 → 回落 blob（兼容 Phase 1 旧数据）。
-  if (expRows.length === 0) {
-    const blob = PersonProfileSchema.safeParse(JSON.parse(meta.data));
-    if (blob.success && (blob.data.experiences.length > 0 || blob.data.name || blob.data.projects.length > 0)) {
-      return blob.data;
-    }
-    // blob 也为空：返回 blob（可能是全新空档案）。
-    return blob.success ? blob.data : null;
-  }
 
   const bulletRows = db
     .prepare("SELECT id, experience_id, text, is_confirmed FROM experience_bullets WHERE experience_id IN (SELECT id FROM experiences WHERE profile_id = ?) ORDER BY idx, rowid")
@@ -133,9 +149,18 @@ function readNormalized(id: string): PersonProfile | null {
     .prepare("SELECT id, institution, degree, field, start_date, end_date FROM education WHERE profile_id = ? ORDER BY idx, rowid")
     .all(id) as EduRow[];
 
-  // blob 仍是基础字段（name/title/email/.../intakeStatus）的来源。
-  const blob = PersonProfileSchema.safeParse(JSON.parse(meta.data));
-  const base = blob.success ? blob.data : createEmptyProfile({ id });
+  // 基础字段来自 profiles 实列；嵌套子实体由子表重建。
+  const base: PersonProfile = {
+    ...createEmptyProfile({ id }),
+    id,
+    name: meta.name ?? "",
+    title: meta.title ?? "",
+    email: meta.email ?? "",
+    phone: meta.phone ?? "",
+    location: meta.location ?? "",
+    summary: meta.summary ?? "",
+    intakeStatus: parseIntakeStatus(meta.intake_status),
+  };
 
   const evidenceByBullet = new Map<string, EvidenceRow[]>();
   for (const ev of evidenceRows) {
@@ -225,15 +250,28 @@ export function saveProfile(profile: PersonProfile): PersonProfile {
   const validated = PersonProfileSchema.parse(profile);
   const now = new Date().toISOString();
   const next = { ...validated, updatedAt: now };
-  const data = JSON.stringify(next);
 
   const db = getDb();
   const tx = db.transaction(() => {
     db.prepare(
-      `INSERT INTO profiles (id, data, created_at, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
-    ).run(validated.id, data, validated.createdAt, now);
+      `INSERT INTO profiles (id, name, title, email, phone, location, summary, intake_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name, title = excluded.title, email = excluded.email,
+         phone = excluded.phone, location = excluded.location, summary = excluded.summary,
+         intake_status = excluded.intake_status, updated_at = excluded.updated_at`,
+    ).run(
+      next.id,
+      next.name,
+      next.title,
+      next.email,
+      next.phone,
+      next.location,
+      next.summary,
+      JSON.stringify(next.intakeStatus),
+      next.createdAt,
+      now,
+    );
     writeNormalized(next);
   });
   tx();

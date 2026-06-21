@@ -63,39 +63,49 @@ function extractColor(attrs: string): string | undefined {
   return normalizeHex(colorMatch[1]);
 }
 
+type StackFrame = { tag: string; style: RunStyle };
+
+export type StyledSegment = { text: string; style: RunStyle };
+
 /**
- * 解析内联 HTML，返回 docx TextRun[]。base 为默认正文样式。
+ * 纯解析：内联 HTML → 带样式的文本段数组（不依赖 docx，可单元测试）。
+ *
+ * 闭标签策略（交错嵌套修复）：从栈顶向下找最近的同名 tag 弹出。
+ * - 良构嵌套（栈顶即匹配）→ 行为与旧版单纯 pop() 完全一致，不回归。
+ * - 交错嵌套（<b><i></b>）→ 只弹出匹配项 b，其上未闭合的 i 重新入栈，i 样式继续作用于后续文本。
+ * - 无匹配开标签 → 安全忽略（不 pop、不负 pop、不崩）。
+ * 块级标签（p/div/li/br）作软换行，标签本身被剥离。
  */
-export function htmlToRuns(html: string, base: BaseRunOpts): TextRun[] {
-  const runs: TextRun[] = [];
-  const stack: RunStyle[] = [];
+export function htmlToStyledSegments(html: string): StyledSegment[] {
+  const segments: StyledSegment[] = [];
+  const stack: StackFrame[] = [];
   let i = 0;
   let buffer = "";
 
   const current = (): RunStyle => {
-    return stack.reduce<RunStyle>((acc, s) => ({ ...acc, ...s }), {});
+    return stack.reduce<RunStyle>((acc, f) => ({ ...acc, ...f.style }), {});
+  };
+
+  const popMatching = (tag: string): void => {
+    let matchIdx = -1;
+    for (let k = stack.length - 1; k >= 0; k -= 1) {
+      if (stack[k].tag === tag) {
+        matchIdx = k;
+        break;
+      }
+    }
+    if (matchIdx === -1) return; // 无匹配开标签，忽略。
+    const reopened = stack.splice(matchIdx + 1); // 匹配项之上的未闭合层
+    stack.pop(); // 匹配项本身
+    for (const f of reopened) stack.push(f); // 未闭合层按原顺序重新入栈
   };
 
   const flush = (style: RunStyle) => {
     if (buffer.length === 0) return;
     const text = decodeEntities(buffer);
-    if (text.length === 0) {
-      buffer = "";
-      return;
-    }
-    runs.push(
-      new TextRun({
-        text,
-        bold: style.bold ?? false,
-        italics: style.italic ?? false,
-        underline: style.underline ? {} : undefined,
-        strike: style.strike ?? false,
-        color: style.color ?? base.color,
-        size: base.size,
-        font: base.font,
-      }),
-    );
     buffer = "";
+    if (text.length === 0) return;
+    segments.push({ text, style });
   };
 
   while (i < html.length) {
@@ -119,32 +129,34 @@ export function htmlToRuns(html: string, base: BaseRunOpts): TextRun[] {
       flush(current());
 
       if (isClosing) {
-        // 弹出最近的匹配样式层（简化：弹一层）。
-        if (stack.length > 0) stack.pop();
+        popMatching(tagName);
         if (SELF_NL_TAGS.has(tagName)) buffer += " ";
         continue;
       }
 
+      // 自闭合标签（如 <br/>）不入栈，避免遗留未配对帧。
+      const selfClosing = tagContent.endsWith("/") || tagName === "br";
+
       switch (tagName) {
         case "strong":
         case "b":
-          stack.push({ bold: true });
+          stack.push({ tag: tagName, style: { bold: true } });
           break;
         case "em":
         case "i":
-          stack.push({ italic: true });
+          stack.push({ tag: tagName, style: { italic: true } });
           break;
         case "u":
-          stack.push({ underline: true });
+          stack.push({ tag: tagName, style: { underline: true } });
           break;
         case "s":
         case "del":
         case "strike":
-          stack.push({ strike: true });
+          stack.push({ tag: tagName, style: { strike: true } });
           break;
         case "span": {
           const color = extractColor(attrs);
-          stack.push(color ? { color } : {});
+          stack.push({ tag: tagName, style: color ? { color } : {} });
           break;
         }
         case "br":
@@ -153,11 +165,11 @@ export function htmlToRuns(html: string, base: BaseRunOpts): TextRun[] {
         case "p":
         case "div":
         case "li":
-          // 块级开标签：内容前置软分隔；不入栈样式。
-          stack.push({});
+          // 块级开标签：闭标签触发软换行。不带样式。
+          if (!selfClosing) stack.push({ tag: tagName, style: {} });
           break;
         default:
-          stack.push({});
+          if (!selfClosing) stack.push({ tag: tagName, style: {} });
           break;
       }
       continue;
@@ -167,8 +179,27 @@ export function htmlToRuns(html: string, base: BaseRunOpts): TextRun[] {
   }
   flush(current());
 
-  // 全空时回退单一空 run，避免段落无 children 报错由调用方处理；这里返回空数组。
-  return runs;
+  return segments;
+}
+
+/**
+ * 解析内联 HTML，返回 docx TextRun[]。base 为默认正文样式。
+ * 全空时返回空数组，由调用方处理段落无 children 的兜底。
+ */
+export function htmlToRuns(html: string, base: BaseRunOpts): TextRun[] {
+  return htmlToStyledSegments(html).map(
+    ({ text, style }) =>
+      new TextRun({
+        text,
+        bold: style.bold ?? false,
+        italics: style.italic ?? false,
+        underline: style.underline ? {} : undefined,
+        strike: style.strike ?? false,
+        color: style.color ?? base.color,
+        size: base.size,
+        font: base.font,
+      }),
+  );
 }
 
 /** 把 HTML 简历文本扁平化为纯文本（用于无需富格式的场景）。 */

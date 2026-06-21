@@ -6,7 +6,11 @@ import path from "node:path";
 /**
  * Prompt 集中管理（design §6.3）。
  * 各 engine 通过本加载器读取 .md 提示词，避免硬编码字符串。
- * 路径基于 process.cwd()/src/features/ai/prompts，与项目其它读文件约定一致。
+ *
+ * 路径基于 process.cwd()/src/features/ai/prompts。
+ * - standard build（`next start`）：源码 src/ 不被构建删除，运行时 cwd 为项目根，路径有效。
+ * - standalone build：产物只含被 tracing 收集的文件，src/*.md 不会被自动追踪；
+ *   已在 next.config.ts 的 outputFileTracingIncludes 显式纳入 src/features/ai/prompts/**\/*.md 兜底。
  */
 
 export const PROMPTS_DIR = path.join(process.cwd(), "src", "features", "ai", "prompts");
