@@ -56,6 +56,7 @@ const LlmOutputSchema = z.object({
             startDate: z.string().default(""),
             endDate: z.string().default(""),
             title: z.string().default(""),
+            bullets: z.array(z.string()).default([]),
           }),
         )
         .default([]),
@@ -74,7 +75,6 @@ const LlmOutputSchema = z.object({
           }),
         )
         .default([]),
-      evidence: z.array(z.string()).default([]),
     }),
   coveredDimensions: z.array(z.string()).default([]),
   phase: z.string().default("basics"),
@@ -111,7 +111,7 @@ export async function runIntakeRound(
   if (parsed.success) {
     result = parsed.data;
   } else {
-    result = { reply: "", collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [], evidence: [] }, coveredDimensions: [], phase: "basics" };
+    result = { reply: "", collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [] }, coveredDimensions: [], phase: "basics" };
   }
 
   const replyText = result.reply.trim() || "抱歉，我没太理解，能再补充一下吗？";
@@ -142,7 +142,30 @@ export async function runIntakeRound(
 
 // ─── Merge ────────────────────────────────────────────────
 
-function mergeCollected(
+/**
+ * 把一段经历的成果点（bullets）去重 append 到目标 experience。
+ * 去重键：同一 experience 内 `bullet.text.trim()` 精确相等即视为重复（不做模糊/语义去重）。
+ * 空文本安全跳过。
+ */
+function appendBullets(
+  target: PersonProfile["experiences"][number],
+  bullets: string[],
+): void {
+  for (const text of bullets) {
+    const norm = text.trim();
+    if (!norm) continue;
+    const dup = target.bullets.some((b) => b.text.trim() === norm);
+    if (dup) continue;
+    target.bullets.push({
+      id: nanoid(8),
+      text: norm,
+      evidence: [{ id: nanoid(8), type: "text", content: norm, note: "" }],
+      isConfirmed: true,
+    });
+  }
+}
+
+export function mergeCollected(
   profile: PersonProfile,
   collected: z.infer<typeof LlmOutputSchema>["collected"],
 ): void {
@@ -154,17 +177,20 @@ function mergeCollected(
 
   for (const exp of collected.experiences) {
     const label = exp.organization + exp.role;
-    const exists = profile.experiences.some((e) => e.organization + e.role === label);
-    if (!exists) {
-      profile.experiences.push({
+    let target = profile.experiences.find((e) => e.organization + e.role === label);
+    if (!target) {
+      target = {
         id: nanoid(8),
         organization: exp.organization || exp.title || "",
         role: exp.role || "",
         startDate: exp.startDate || "",
         endDate: exp.endDate || "",
         bullets: [],
-      });
+      };
+      profile.experiences.push(target);
     }
+    // 成果点按结构嵌套天然归属该经历，去重 append（含新建经历自带 bullets）
+    appendBullets(target, exp.bullets);
   }
 
   for (const proj of collected.projects) {
@@ -195,18 +221,6 @@ function mergeCollected(
         field: edu.field,
         startDate: "",
         endDate: "",
-      });
-    }
-  }
-
-  for (const ev of collected.evidence) {
-    const lastExp = profile.experiences[profile.experiences.length - 1];
-    if (lastExp) {
-      lastExp.bullets.push({
-        id: nanoid(8),
-        text: ev,
-        evidence: [{ id: nanoid(8), type: "text", content: ev, note: "" }],
-        isConfirmed: true,
       });
     }
   }
