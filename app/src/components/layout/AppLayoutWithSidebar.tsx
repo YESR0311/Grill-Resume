@@ -19,9 +19,9 @@ export function AppLayoutWithSidebar({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-bg-cream">
-      {/* 侧边栏固定宽度 256px */}
-      <aside className="w-64 flex-shrink-0 border-r border-warm-hairline bg-surface-light">
+    <div className="flex h-screen bg-background dark:bg-background">
+      {/* 侧边栏固定宽度 256px，暗色模式自适应 */}
+      <aside className="w-64 flex-shrink-0 border-r border-border bg-secondary dark:bg-secondary">
         {sidebar}
       </aside>
 

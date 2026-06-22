@@ -122,7 +122,7 @@ export async function runIntakeRound(
   // 解析容错三级（design §A1）：
   //   ① LLM schema 成功 → 用之。
   //   ② 失败但 text 非空 → 把整段 text 当 reply（保证对话不断），collected 空、维度/phase 沿用。
-  //   ③ text 也空 → 真异常 fallback。
+  //   ③ text 也空 → 基于未覆盖维度的上下文感知 fallback。
   let result: z.infer<typeof LlmOutputSchema>;
   const parsed = LlmOutputSchema.safeParse(extractJson(text));
   if (parsed.success) {
@@ -138,12 +138,22 @@ export async function runIntakeRound(
         phase: profile.intakeStatus.phase,
       };
     } else {
-      // ③ 真正异常
-      result = { reply: "", collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [] }, coveredDimensions: [], phase: "basics" };
+      // ③ 真正异常：基于未覆盖维度生成上下文感知的 fallback
+      const uncovered = [...INTAKE_DIMENSIONS].filter(d => !profile.intakeStatus.coveredDimensions.includes(d));
+      const fallbackReplies: Record<IntakeDimension, string> = {
+        basics: "请问你的姓名和目标岗位是什么？",
+        experience: "能说说你的工作经历吗？从最近的一份开始就好。",
+        project: "你参与过哪些项目？可以简单介绍一下。",
+        skill: "你有哪些技能？比如编程语言、工具、框架等。",
+        education: "你的教育背景是怎样的？",
+        evidence: "在这些经历中，有没有一些具体的成果或数据可以分享？",
+      };
+      // 优先用未覆盖维度的追问
+      const primaryDimension = uncovered[0] as IntakeDimension | undefined;
+      const fallbackReply = primaryDimension ? fallbackReplies[primaryDimension] : "你还有什么想补充的吗？";
+      result = { reply: fallbackReply, collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [] }, coveredDimensions: profile.intakeStatus.coveredDimensions, phase: profile.intakeStatus.phase };
     }
   }
-
-  const replyText = result.reply.trim() || "抱歉，我没太理解，能再补充一下吗？";
 
   // 把对话写入 intake log（assistant 存对用户可见的 reply，不存原始 JSON）
   await appendMessages(profileId, [

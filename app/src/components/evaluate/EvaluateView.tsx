@@ -12,7 +12,6 @@ import {
 import type { EvaluationReport, EvaluationItem } from "@/features/evaluation/types";
 import { reportToMarkdown } from "@/features/evaluation/report-markdown";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import {
   Dialog,
@@ -144,6 +143,7 @@ export function EvaluateView({
         <DoneView
           report={state.report}
           onPolish={() => setConfirmPolish(true)}
+          onReevaluate={run}
         />
       )}
 
@@ -258,22 +258,29 @@ function ErrorView({ error, onRetry }: { error: string; onRetry: () => void }) {
 function DoneView({
   report,
   onPolish,
+  onReevaluate,
 }: {
   report: EvaluationReport;
   onPolish: () => void;
+  onReevaluate: () => void;
 }) {
   const markdown = reportToMarkdown(report);
   return (
     <div className="animate-in fade-in duration-300">
       <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
         <h1 className="text-xl font-semibold">评估报告</h1>
-        <Button size="lg" onClick={onPolish}>
-          开始润色
-          <ArrowRight size={16} />
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="lg" onClick={onReevaluate}>
+            重新评估
+          </Button>
+          <Button size="lg" onClick={onPolish}>
+            开始润色
+            <ArrowRight size={16} />
+          </Button>
+        </div>
       </div>
 
-      <ScrollArea className="max-h-[70vh] rounded-2xl bg-card p-6 ring-1 ring-border">
+      <div className="min-h-[300px] rounded-2xl bg-card p-6 ring-1 ring-border max-h-[calc(100vh-280px)] overflow-y-auto">
         <article className="max-w-none text-sm leading-6 text-foreground">
           <ReactMarkdown
             components={{
@@ -300,7 +307,7 @@ function DoneView({
             {markdown}
           </ReactMarkdown>
         </article>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

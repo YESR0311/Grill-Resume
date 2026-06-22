@@ -55,3 +55,4 @@ external/**/.codegraph/
 external/**/.agent-log
 external/**/.agents/
 external/**/.session-id
+.ace-tool/

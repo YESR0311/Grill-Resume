@@ -1,22 +1,37 @@
-import { AppLayoutWithSidebar } from "@/components/layout/AppLayoutWithSidebar";
-import { ProfileList } from "@/components/layout/ProfileList";
-import { HomeIntake } from "@/components/intake/HomeIntake";
-import { buildOpeningMessage } from "@/features/intake/engine";
+import { HomeHero } from "@/components/landing/HomeHero";
+import { FeatureCards } from "@/components/landing/FeatureCards";
 
 export const dynamic = "force-dynamic";
 
 /**
- * 首页：侧边栏显示档案列表 + 主区问答工作台
- * 惰性建档（P1-a）：建档在 HomeIntake 内由用户首条消息触发
+ * 首页：引导页（Hero + Feature 展示）
+ *
+ * 与问答页面分离：
+ * - 首页 = 价值引导入口
+ * - /intake/[id] = 深度问答采集
  */
-export default async function Home() {
-  const opening = buildOpeningMessage().content;
-
+export default function Home() {
   return (
-    <AppLayoutWithSidebar sidebar={<ProfileList />}>
-      <div className="flex h-full flex-col">
-        <HomeIntake openingMessage={opening} />
-      </div>
-    </AppLayoutWithSidebar>
+    <div className="flex min-h-screen flex-col">
+      <main className="flex-1">
+        <HomeHero />
+        <FeatureCards />
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border px-8 py-4">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>中文简历工坊</span>
+          <div className="flex items-center gap-4">
+            <a
+              href="/settings"
+              className="hover:text-foreground hover:underline"
+            >
+              设置
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

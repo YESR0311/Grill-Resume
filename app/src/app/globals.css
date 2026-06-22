@@ -166,6 +166,42 @@ h1, h2, h3 {
   letter-spacing: -0.02em;
 }
 
+/* ─── 暗色模式覆盖 ─────────────────────────────────────── */
+.dark {
+  /* 暗色基底 */
+  --color-bg-cream: #1a1a1a;
+  --color-surface-light: #242424;
+  --color-surface-white: #2d2d2d;
+  --color-warm-hairline: #3a3a3a;
+
+  /* 暗色文字（浅色确保在暗色背景可读） */
+  --color-ink: #f5f5f5;
+  --color-muted-text: #a0a0a0;
+  --color-charcoal: #0f0f0f;
+
+  /* terracotta 在暗色保持原样 */
+  --color-terracotta: #C4612F;
+  --color-terracotta-hover: #D4723A;
+  --color-terracotta-tint: #3d2a1f;
+
+  /* Tailwind v4 tokens */
+  --color-background: #1a1a1a;
+  --color-foreground: #f5f5f5;
+  --color-card: #2d2d2d;
+  --color-card-foreground: #f5f5f5;
+  --color-primary: #C4612F;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #242424;
+  --color-secondary-foreground: #f5f5f5;
+  --color-muted: #242424;
+  --color-muted-foreground: #a0a0a0;
+  --color-accent: #3d2a1f;
+  --color-accent-foreground: #C4612F;
+  --color-border: #3a3a3a;
+  --color-input: #3a3a3a;
+  --color-ring: #C4612F;
+}
+
 @media print {
   body {
     background: #ffffff;
