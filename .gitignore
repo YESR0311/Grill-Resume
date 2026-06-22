@@ -20,6 +20,13 @@ build/config.gypi
 demo/
 demo/resume-data.json
 
+# external reference repos (third-party samples; not part of this project)
+external/
+external/**
+
+# legacy e2e evidence artifacts (pre-three-step; not part of this project)
+e2e/
+
 # external reference repos may include real-person sample resumes/templates
 external/**/*.docx
 external/**/*.docx:Zone.Identifier
