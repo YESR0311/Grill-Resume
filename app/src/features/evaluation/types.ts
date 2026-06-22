@@ -2,16 +2,23 @@ import { z } from "zod";
 
 /**
  * 逐条评估报告。
- * 评估引擎对档案的每段经历逐条要点生成此报告。
+ * 评估引擎对档案的每个条目（经历/项目/技能/教育）整体评分。
  */
+
+/** 评估单元（全档案条目统一结构） */
+export type EvalUnit = {
+  targetType: "experience" | "project" | "skill" | "education";
+  targetId: string;
+  title: string;
+  content: string;
+};
 
 export const EvaluationItemSchema = z.object({
   id: z.string(),
-  targetType: z.enum(["experience", "project", "skill", "basics"]),
+  targetType: z.enum(["experience", "project", "skill", "education"]),
   targetId: z.string(),                // 关联的 experience.id / project.id 等
-  bulletId: z.string().optional(),     // 具体到某条要点时填充
 
-  // 原文本
+  // 条目标题+原文（字段随粒度已改：不再只是 bullet 原文）
   originalText: z.string().default(""),
 
   // 评估结果（6 维数值评分，1-10，精确到 0.5；design §4.2）
@@ -23,9 +30,9 @@ export const EvaluationItemSchema = z.object({
   scarcity: z.number().min(1).max(10).default(5),      // 稀缺性
   overallScore: z.number().min(1).max(10).default(5),  // 综合分数
 
-  // 联网佐证
-  searchEvidence: z.string().default(""),   // 联网查到的内容摘要
-  searchSources: z.array(z.string()).default([]), // URL 列表
+  // 联网佐证（本轮已删展示层，保留字段兼容 DB）
+  searchEvidence: z.string().default(""),
+  searchSources: z.array(z.string()).default([]),
 
   // 改进建议（模型生成）
   suggestion: z.string().default(""),

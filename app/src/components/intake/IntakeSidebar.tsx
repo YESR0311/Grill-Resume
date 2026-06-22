@@ -66,20 +66,23 @@ export function IntakeSidebar({
       {/* 进度 */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
         <p className="mb-3 text-xs font-medium text-muted-foreground">问答进度</p>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {INTAKE_DIMENSIONS.map((dim) => {
             const done = covered.has(dim);
             const labels = INTAKE_DIMENSION_LABELS;
             return (
-              <div key={dim} className="flex items-center gap-2">
+              <div key={dim} className="flex items-center gap-3">
                 <div
-                  className={`h-2 w-2 rounded-full ${
-                    done ? "bg-status-confirmed" : "bg-muted"
-                  }`}
+                  className={`h-3 w-3 rounded-full shadow-sm ${
+                    done
+                      ? "bg-status-confirmed shadow-status-confirmed/30"
+                      : "bg-muted-foreground/30"
+                  } ${done ? "" : "opacity-40"}`}
+                  title={done ? "已完成" : "未完成"}
                 />
                 <span
-                  className={`text-xs ${
-                    done ? "text-foreground" : "text-muted-foreground"
+                  className={`text-sm ${
+                    done ? "font-medium text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {labels[dim] ?? dim}

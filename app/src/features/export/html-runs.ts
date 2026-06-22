@@ -14,6 +14,9 @@ import { TextRun } from "docx";
  *   <u>                   → underline
  *   <s>/<del>/<strike>    → strike
  *   <span style="color:…">→ color（来自 Tiptap color extension）
+ *   <span style="font-size:…">→ size（来自 FontSize extension）
+ *   <span style="font-weight:…">→ bold（来自 FontWeight extension）
+ *   <span style="letter-spacing:…">→ spacing（来自 LetterSpacing extension）
  * 块级标签（<p>/<div>/<br>）作为软换行/空格处理，标签本身被剥离。
  *
  * 不依赖浏览器 DOM：纯字符串扫描，运行在 Node 服务端。
@@ -25,6 +28,9 @@ type RunStyle = {
   underline?: boolean;
   strike?: boolean;
   color?: string;
+  fontSize?: string; // Sprint 6 新增
+  fontWeight?: string; // Sprint 6 新增
+  letterSpacing?: string; // Sprint 6 新增
 };
 
 type BaseRunOpts = { color: string; size: number; font: string };
@@ -61,6 +67,27 @@ function extractColor(attrs: string): string | undefined {
   const colorMatch = styleMatch[1].match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
   if (!colorMatch) return undefined;
   return normalizeHex(colorMatch[1]);
+}
+
+function extractFontSize(attrs: string): string | undefined {
+  const styleMatch = attrs.match(/style\s*=\s*"([^"]*)"/i);
+  if (!styleMatch) return undefined;
+  const sizeMatch = styleMatch[1].match(/(?:^|;)\s*font-size\s*:\s*([^;]+)/i);
+  return sizeMatch?.[1]?.trim();
+}
+
+function extractFontWeight(attrs: string): string | undefined {
+  const styleMatch = attrs.match(/style\s*=\s*"([^"]*)"/i);
+  if (!styleMatch) return undefined;
+  const weightMatch = styleMatch[1].match(/(?:^|;)\s*font-weight\s*:\s*([^;]+)/i);
+  return weightMatch?.[1]?.trim();
+}
+
+function extractLetterSpacing(attrs: string): string | undefined {
+  const styleMatch = attrs.match(/style\s*=\s*"([^"]*)"/i);
+  if (!styleMatch) return undefined;
+  const spacingMatch = styleMatch[1].match(/(?:^|;)\s*letter-spacing\s*:\s*([^;]+)/i);
+  return spacingMatch?.[1]?.trim();
 }
 
 type StackFrame = { tag: string; style: RunStyle };
@@ -156,7 +183,18 @@ export function htmlToStyledSegments(html: string): StyledSegment[] {
           break;
         case "span": {
           const color = extractColor(attrs);
-          stack.push({ tag: tagName, style: color ? { color } : {} });
+          const fontSize = extractFontSize(attrs);
+          const fontWeight = extractFontWeight(attrs);
+          const letterSpacing = extractLetterSpacing(attrs);
+          stack.push({
+            tag: tagName,
+            style: {
+              ...(color ? { color } : {}),
+              ...(fontSize ? { fontSize } : {}),
+              ...(fontWeight ? { fontWeight } : {}),
+              ...(letterSpacing ? { letterSpacing } : {}),
+            },
+          });
           break;
         }
         case "br":
@@ -187,19 +225,50 @@ export function htmlToStyledSegments(html: string): StyledSegment[] {
  * 全空时返回空数组，由调用方处理段落无 children 的兜底。
  */
 export function htmlToRuns(html: string, base: BaseRunOpts): TextRun[] {
-  return htmlToStyledSegments(html).map(
-    ({ text, style }) =>
-      new TextRun({
-        text,
-        bold: style.bold ?? false,
-        italics: style.italic ?? false,
-        underline: style.underline ? {} : undefined,
-        strike: style.strike ?? false,
-        color: style.color ?? base.color,
-        size: base.size,
-        font: base.font,
-      }),
-  );
+  return htmlToStyledSegments(html).map(({ text, style }) => {
+    // fontSize: 转换为 half-point（1pt = 2 half-points）
+    let size = base.size;
+    if (style.fontSize) {
+      const pxMatch = style.fontSize.match(/^(\d+)px$/);
+      if (pxMatch) {
+        const px = parseInt(pxMatch[1], 10);
+        // 近似转换：1px ≈ 0.75pt
+        size = Math.round(px * 0.75 * 2);
+      }
+    }
+
+    // fontWeight: 600+ 视为 bold
+    let bold = style.bold ?? false;
+    if (style.fontWeight) {
+      const weight = parseInt(style.fontWeight, 10);
+      if (!isNaN(weight) && weight >= 600) {
+        bold = true;
+      }
+    }
+
+    // letterSpacing: docx spacing 单位为 1/20 point
+    let spacing: number | undefined;
+    if (style.letterSpacing) {
+      const pxMatch = style.letterSpacing.match(/^(\d+)px$/);
+      if (pxMatch) {
+        const px = parseInt(pxMatch[1], 10);
+        // 近似转换：1px ≈ 0.75pt, spacing in 1/20pt
+        spacing = Math.round(px * 0.75 * 20);
+      }
+    }
+
+    return new TextRun({
+      text,
+      bold,
+      italics: style.italic ?? false,
+      underline: style.underline ? {} : undefined,
+      strike: style.strike ?? false,
+      color: style.color ?? base.color,
+      size,
+      font: base.font,
+      ...(spacing !== undefined ? { characterSpacing: spacing } : {}),
+    });
+  });
 }
 
 /** 把 HTML 简历文本扁平化为纯文本（用于无需富格式的场景）。 */

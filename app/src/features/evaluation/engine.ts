@@ -7,8 +7,9 @@ import { z } from "zod";
 import { chat, requireTaskRoute, multiSearch, extractJson, type SearchHit } from "@/features/ai/chat";
 import { PROMPTS_DIR } from "@/features/ai/prompts";
 import { getProfile } from "@/features/profile/store";
+import type { PersonProfile } from "@/features/profile/types";
 import { getDb } from "@/lib/db";
-import { EvaluationItemSchema, type EvaluationItem } from "./types";
+import { EvaluationItemSchema, type EvaluationItem, type EvalUnit } from "./types";
 
 // ─── 系统提示词（集中到 prompts/，design §6.3） ──────────────
 
@@ -23,37 +24,102 @@ const SingleEvalSchema = z.object({
   expression: z.number().min(1).max(10).default(5),
   scarcity: z.number().min(1).max(10).default(5),
   overallScore: z.number().min(1).max(10).default(5),
-  searchEvidence: z.string().default(""),
   suggestion: z.string().default(""),
   suggestedRewrite: z.string().default(""),
 });
 
-// ─── Phase 1：每 session 一次联网研究（design §4.2） ───────────
+// ─── 评估单元构建（全档案覆盖，design §B1） ──────────────────
 
 /**
- * 评估会话：仅 1 次联网研究（研究岗位评估框架，非 per bullet），
- * 创建/重建 evaluation_reports 行，返回待逐条评估的 bulletIds + 共享 searchContext。
+ * 把档案各条目拆为评估单元，每单元整体评分。
+ * EvalUnit 的 targetType/targetId 对应被评条目 ID。
+ */
+export function buildEvalUnits(profile: PersonProfile): EvalUnit[] {
+  const units: EvalUnit[] = [];
+
+  // 经历段：拼接 org+role+起止+全部 bullets
+  for (const exp of profile.experiences) {
+    const parts: string[] = [];
+    if (exp.organization) parts.push(`机构：${exp.organization}`);
+    if (exp.role) parts.push(`角色：${exp.role}`);
+    if (exp.startDate) parts.push(`时间：${exp.startDate}${exp.endDate ? ` — ${exp.endDate}` : ""}`);
+    if (exp.bullets.length) {
+      parts.push("成果点：");
+      parts.push(...exp.bullets.map((b, i) => `  ${i + 1}. ${b.text}`));
+    }
+    units.push({
+      targetType: "experience",
+      targetId: exp.id,
+      title: `${exp.organization || ""} ${exp.role || ""}`.trim() || "经历",
+      content: parts.join("\n"),
+    });
+  }
+
+  // 项目段
+  for (const proj of profile.projects) {
+    const parts: string[] = [];
+    if (proj.name) parts.push(`项目：${proj.name}`);
+    if (proj.role) parts.push(`角色：${proj.role}`);
+    if (proj.description) parts.push(`描述：${proj.description}`);
+    if (!parts.length) continue;
+    units.push({
+      targetType: "project",
+      targetId: proj.id,
+      title: proj.name || "项目",
+      content: parts.join("\n"),
+    });
+  }
+
+  // 技能组段
+  for (const sg of profile.skillGroups) {
+    const names = sg.skills.filter(Boolean);
+    if (!names.length) continue;
+    units.push({
+      targetType: "skill",
+      targetId: sg.id,
+      title: sg.category || "技能组",
+      content: `技能：${names.join("、")}`,
+    });
+  }
+
+  // 教育段
+  for (const edu of profile.education) {
+    const parts: string[] = [];
+    if (edu.institution) parts.push(`学校：${edu.institution}`);
+    if (edu.degree) parts.push(`学位：${edu.degree}`);
+    if (edu.field) parts.push(`专业：${edu.field}`);
+    if (edu.startDate) parts.push(`时间：${edu.startDate}${edu.endDate ? ` — ${edu.endDate}` : ""}`);
+    if (!parts.length) continue;
+    units.push({
+      targetType: "education",
+      targetId: edu.id,
+      title: edu.institution || "教育",
+      content: parts.join("\n"),
+    });
+  }
+
+  return units;
+}
+
+// ─── Phase 1：每 session 一次联网研究 ──────────────────────
+
+/**
+ * 评估会话：仅 1 次联网研究（研究岗位评估方法论，与具体条目解耦），
+ * 创建/重建 evaluation_reports 行，返回 evaluUnits + 共享 searchContext。
  */
 export async function runEvaluationSession(
   profileId: string,
-): Promise<{ reportId: string; bulletIds: string[]; searchContext: string }> {
+): Promise<{ reportId: string; units: EvalUnit[]; searchContext: string }> {
   const profile = getProfile(profileId);
   if (!profile) throw new Error("档案不存在");
-  if (profile.experiences.length === 0) throw new Error("无经历可评估");
 
-  // 收集所有 bulletId
-  const bulletIds: string[] = [];
-  for (const exp of profile.experiences) {
-    for (const bullet of exp.bullets) {
-      bulletIds.push(bullet.id);
-    }
-  }
-  if (bulletIds.length === 0) throw new Error("无经历要点可评估");
+  const units = buildEvalUnits(profile);
+  if (units.length === 0) throw new Error("无条目可评估");
 
-  // Phase 1 联网研究：研究该岗位的评估方法论/成熟案例（每 session 1 次）
-  const searchContext = await researchEvaluationContext(profile.title, bulletIds, profile);
+  // Phase 1 联网研究：针对岗位/领域的方法论查询（不 per 条目、不打包档案）
+  const searchContext = await researchEvaluationContext(profile.title, profile);
 
-  // 创建/重建 evaluation_reports 行 + 清空旧 items（同步 better-sqlite3）
+  // 创建/重建 evaluation_reports 行 + 清空旧 items
   const db = getDb();
   const now = new Date().toISOString();
   const existing = db
@@ -73,28 +139,34 @@ export async function runEvaluationSession(
     ).run(reportId, profileId, "", now, now);
   }
 
-  return { reportId, bulletIds, searchContext };
+  return { reportId, units, searchContext };
 }
 
 /**
- * Phase 1 查询构造（design §4.2）：
- * - job_title 有值 → "{job_title} resume bullet evaluation criteria {industry}"
- * - 为空 → 用 bullet 关键词 "{bullet_keyword} resume evaluation"
- * 每 query 各 1 次搜索、最多 3 结果；两 query 均失败/超时 → 返回空上下文（不阻塞 Phase 2）。
+ * Phase 1 查询构造（design §B, S2 已修）：
+ * - jobTitle 有值 → "<岗位> resume evaluation methodology"
+ * - 无 jobTitle → 从 skillGroups/education 推断领域 → "<领域> resume evaluation methodology"
+ * 每 query 各 1 次搜索、最多 3 结果；全部失败/超时 → 返回空上下文（不阻塞 Phase 2）。
  */
 async function researchEvaluationContext(
   jobTitle: string,
-  bulletIds: string[],
-  profile: NonNullable<ReturnType<typeof getProfile>>,
+  profile: PersonProfile,
 ): Promise<string> {
   const queries: string[] = [];
   if (jobTitle.trim()) {
-    queries.push(`${jobTitle} resume bullet evaluation criteria`);
+    queries.push(`${jobTitle.trim()} resume evaluation methodology`);
   } else {
-    // 取首条 bullet 的前几个词作为关键词
-    const firstBullet = profile.experiences.flatMap((e) => e.bullets)[0];
-    const keyword = (firstBullet?.text ?? "").split(/\s+/).slice(0, 4).join(" ").trim();
-    if (keyword) queries.push(`${keyword} resume evaluation`);
+    // 从技能/教育推断领域，不用 bullet 关键词
+    const domainParts: string[] = [];
+    for (const sg of profile.skillGroups) {
+      const names = sg.skills.filter(Boolean);
+      if (names.length) domainParts.push(names.join(" "));
+    }
+    for (const edu of profile.education) {
+      if (edu.field) domainParts.push(edu.field);
+    }
+    const domain = domainParts.join(" ").trim();
+    if (domain) queries.push(`${domain} resume evaluation methodology`);
   }
   if (queries.length === 0) return "";
 
@@ -115,32 +187,19 @@ async function researchEvaluationContext(
   return hits.map((h) => `[${h.title}](${h.url}): ${h.snippet}`).join("\n");
 }
 
-// ─── Phase 2：逐条 LLM 评估，直接写规范化表（design §4.2） ─────
+// ─── Phase 2：逐单元 LLM 评估 ──────────────────────────────
 
 /**
- * 单条评估：复用 Phase 1 的 searchContext，对一条 bullet 做 6 维 LLM 评估，
- * UPSERT 进 evaluation_items 规范化表，返回单条 item。
+ * 逐单元评估：对一个 EvalUnit（经历/项目/技能/教育）做 6 维 LLM 评估，
+ * UPSERT 进 evaluation_items 规范化表。
  */
-export async function evaluateOneItem(
+export async function evaluateOneUnit(
   profileId: string,
-  bulletId: string,
+  unit: EvalUnit,
   searchContext: string,
 ): Promise<EvaluationItem> {
   const profile = getProfile(profileId);
   if (!profile) throw new Error("档案不存在");
-
-  // 定位 bullet 及其所属经历
-  let originalText = "";
-  let targetId = "";
-  for (const exp of profile.experiences) {
-    const b = exp.bullets.find((x) => x.id === bulletId);
-    if (b) {
-      originalText = b.text;
-      targetId = exp.id;
-      break;
-    }
-  }
-  if (!targetId) throw new Error("要点不存在");
 
   const db = getDb();
   const report = db
@@ -151,9 +210,10 @@ export async function evaluateOneItem(
 
   const route = requireTaskRoute("evaluate");
 
+  const targetInfo = `${unit.title}`;
   const userPrompt =
     `目标岗位：${profile.title || "未指定"}\n\n` +
-    `## 待评估 bullet 原文\n${originalText}\n\n` +
+    `## 待评估条目\n${unit.content}\n\n` +
     `## 联网参考（该岗位评估方法论/成熟案例，可能为空）\n${searchContext || "无"}\n`;
 
   let evalResult: z.infer<typeof SingleEvalSchema>;
@@ -171,7 +231,6 @@ export async function evaluateOneItem(
     if (parsed.success) {
       evalResult = parsed.data;
     } else {
-      // JSON 格式漂移：回退默认分值 5（design §七风险）
       evalResult = SingleEvalSchema.parse({});
       status = "failed";
     }
@@ -182,10 +241,9 @@ export async function evaluateOneItem(
 
   const item: EvaluationItem = EvaluationItemSchema.parse({
     id: nanoid(8),
-    targetType: "experience",
-    targetId,
-    bulletId,
-    originalText,
+    targetType: unit.targetType,
+    targetId: unit.targetId,
+    originalText: targetInfo + "\n" + unit.content,
     relevance: evalResult.relevance,
     specificity: evalResult.specificity,
     credibility: evalResult.credibility,
@@ -193,25 +251,22 @@ export async function evaluateOneItem(
     expression: evalResult.expression,
     scarcity: evalResult.scarcity,
     overallScore: evalResult.overallScore,
-    searchEvidence: evalResult.searchEvidence || searchContext,
+    searchEvidence: "",
     searchSources: [],
     suggestion: evalResult.suggestion,
     suggestedRewrite: evalResult.suggestedRewrite,
     status,
   });
 
-  // UPSERT 进规范化表：依赖 (report_id, bullet_id) 唯一索引，ON CONFLICT 原子更新，
-  // 消除原先 DELETE+INSERT 之间的竞态（Sprint 6 额外修复）。
+  // UPSERT 依赖 (report_id, target_type, target_id) UNIQUE
   db.prepare(
     `INSERT INTO evaluation_items
-       (id, report_id, target_type, target_id, bullet_id, original_text,
+       (id, report_id, target_type, target_id, original_text,
         relevance, specificity, credibility, recency, expression, scarcity, overall_score,
         search_evidence, suggestion, suggested_rewrite, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(report_id, bullet_id) DO UPDATE SET
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(report_id, target_type, target_id) DO UPDATE SET
        id = excluded.id,
-       target_type = excluded.target_type,
-       target_id = excluded.target_id,
        original_text = excluded.original_text,
        relevance = excluded.relevance,
        specificity = excluded.specificity,
@@ -229,7 +284,6 @@ export async function evaluateOneItem(
     reportId,
     item.targetType,
     item.targetId,
-    item.bulletId ?? null,
     item.originalText,
     item.relevance,
     item.specificity,

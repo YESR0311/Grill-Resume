@@ -10,6 +10,7 @@ import { ensureWorkspaceLayout, getSettingsRoot } from "@/lib/workspace";
 import {
   ConnectionSchema,
   SearchProviderConfigSchema,
+  SEARCH_BASE_URLS,
   TaskRouteSchema,
   type Connection,
   type ConnectionSummary,
@@ -200,8 +201,6 @@ export function deleteConnection(id: string): void {
 export function saveSearchProvider(input: {
   id?: string;
   kind: SearchKind;
-  name: string;
-  baseUrl: string;
   apiKey: string;
   enabled?: boolean;
 }): SearchProviderSummary {
@@ -211,8 +210,8 @@ export function saveSearchProvider(input: {
   const config: SearchProviderConfig = SearchProviderConfigSchema.parse({
     id,
     kind: input.kind,
-    name: input.name.trim(),
-    baseUrl: input.baseUrl.trim().replace(/\/$/, ""),
+    name: "",
+    baseUrl: SEARCH_BASE_URLS[input.kind] ?? "",
     apiKey: input.apiKey.trim(),
     enabled: input.enabled ?? true,
     createdAt: now,

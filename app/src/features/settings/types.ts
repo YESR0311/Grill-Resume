@@ -18,11 +18,17 @@ export type ConnectionSummary = Omit<Connection, "apiKey"> & { hasApiKey: boolea
 export const SEARCH_KINDS = ["tavily", "exa"] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
+/** 搜索渠道 base URL 内置常量（不再由用户填写） */
+export const SEARCH_BASE_URLS: Record<SearchKind, string> = {
+  tavily: "https://api.tavily.com",
+  exa: "https://api.exa.ai",
+};
+
 export const SearchProviderConfigSchema = z.object({
   id: z.string(),
   kind: z.enum(SEARCH_KINDS),
-  name: z.string(),
-  baseUrl: z.string(),
+  name: z.string().default(""),       // 保留兼容（用户不再填，旧记录兼容）
+  baseUrl: z.string().default(""),    // 保留兼容（从 SEARCH_BASE_URLS 按 kind 推导）
   apiKey: z.string(),
   enabled: z.boolean().default(true),
   createdAt: z.string(),

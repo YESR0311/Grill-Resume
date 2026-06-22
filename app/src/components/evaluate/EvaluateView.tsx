@@ -6,7 +6,7 @@ import { ArrowRight, ArrowLeft, AlertCircle, Search } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import {
   runEvaluationSessionAction,
-  evaluateOneItemAction,
+  evaluateOneUnitAction,
   getEvalReportAction,
 } from "@/app/evaluate/[id]/actions";
 import type { EvaluationReport, EvaluationItem } from "@/features/evaluation/types";
@@ -26,8 +26,7 @@ import {
 type ProfileSummary = {
   name: string;
   title: string;
-  experienceCount: number;
-  bulletCount: number;
+  unitCount: number;
 };
 
 type EvalState =
@@ -36,6 +35,13 @@ type EvalState =
   | { status: "running"; done: number; total: number; items: EvaluationItem[] }
   | { status: "done"; report: EvaluationReport }
   | { status: "error"; error: string };
+
+const TARGET_LABELS: Record<string, string> = {
+  experience: "经历",
+  project: "项目",
+  skill: "技能",
+  education: "教育",
+};
 
 export function EvaluateView({
   profileId,
@@ -48,7 +54,7 @@ export function EvaluateView({
   const [confirmPolish, setConfirmPolish] = useState(false);
   const router = useRouter();
 
-  // 逐条评估：先开 session（1 次联网研究），再遍历 bulletIds 逐条评估，逐条 push（design §4.2 / §5.4）
+  // 逐单元评估：先开 session（1 次联网研究），再遍历 units 逐单元评估，逐条 push（design §B1）
   const run = useCallback(async () => {
     setState({ status: "running", done: 0, total: 0, items: [] });
     const session = await runEvaluationSessionAction(profileId);
@@ -56,11 +62,11 @@ export function EvaluateView({
       setState({ status: "error", error: session.error });
       return;
     }
-    const { bulletIds, searchContext } = session.data;
+    const { units, searchContext } = session.data;
     const collected: EvaluationItem[] = [];
 
-    for (let i = 0; i < bulletIds.length; i++) {
-      const result = await evaluateOneItemAction(profileId, bulletIds[i], searchContext);
+    for (let i = 0; i < units.length; i++) {
+      const result = await evaluateOneUnitAction(profileId, units[i], searchContext);
       if (!result.ok) {
         setState({ status: "error", error: result.error });
         return;
@@ -69,7 +75,7 @@ export function EvaluateView({
       setState({
         status: "running",
         done: i + 1,
-        total: bulletIds.length,
+        total: units.length,
         items: [...collected],
       });
     }
@@ -87,7 +93,7 @@ export function EvaluateView({
     setConfirmPolish(true);
   }, [profileId]);
 
-  // 加载已有报告：有则展示（已评估态），无则进入待评估
+  // 加载已有报告
   useEffect(() => {
     let cancelled = false;
     getEvalReportAction(profileId).then((report) => {
@@ -176,9 +182,9 @@ function IdleView({
     <div className="flex flex-col items-center gap-6 py-16 animate-in fade-in duration-300">
       <Search size={36} className="text-primary" />
       <div className="text-center">
-        <h1 className="mb-1 text-xl font-semibold">逐条联网评估</h1>
+        <h1 className="mb-1 text-xl font-semibold">AI 评估</h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          对每条经历要点分别联网搜索佐证并由 AI 评分，帮你定位简历的薄弱点。
+          对档案中的经历、项目、技能、教育各条目由 AI 逐项评分，帮你定位简历的薄弱点。
         </p>
       </div>
 
@@ -186,16 +192,13 @@ function IdleView({
       <div className="grid w-full max-w-md grid-cols-2 gap-3">
         <SummaryCard label="姓名" value={summary.name || "未填写"} />
         <SummaryCard label="目标岗位" value={summary.title || "未填写"} />
-        <SummaryCard label="经历数" value={String(summary.experienceCount)} />
-        <SummaryCard label="经历要点" value={String(summary.bulletCount)} />
+        <SummaryCard label="待评条目" value={String(summary.unitCount)} />
       </div>
 
       <Button size="lg" onClick={onStart} className="px-8">
-        开始联网评估
+        开始评估
         <ArrowRight size={16} />
       </Button>
-
-      <PrivacyNotice />
     </div>
   );
 }
@@ -222,14 +225,11 @@ function RunningView({
   return (
     <div className="animate-in fade-in duration-300">
       <LoadingOverlay
-        message={
-          total > 0 ? `正在联网逐条评估第 ${done}/${total} 条…` : "正在联网研究评估方法论…"
-        }
-        detail="评估仅在本地进行，数据不会上传"
+        message={total > 0 ? `正在评估中 ${done}/${total}…` : "正在评估中…"}
         showSkeleton={items.length === 0}
       />
 
-      {/* 逐条已完成的评估卡片 */}
+      {/* 逐项已完成的评估卡片 */}
       {items.length > 0 && (
         <div className="mt-2 space-y-4">
           {items.map((item) => (
@@ -273,8 +273,6 @@ function DoneView({
         </Button>
       </div>
 
-      <PrivacyNotice className="mb-4" />
-
       <ScrollArea className="max-h-[70vh] rounded-2xl bg-card p-6 ring-1 ring-border">
         <article className="max-w-none text-sm leading-6 text-foreground">
           <ReactMarkdown
@@ -293,14 +291,9 @@ function DoneView({
                   {...p}
                 />
               ),
-              a: ({ ...p }) => (
-                <a
-                  className="text-primary underline underline-offset-2 hover:text-primary/80"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  {...p}
-                />
-              ),
+              // issue 7：屏蔽所有外部链接与图片（searchEvidence/sources 已删，兜底防御）
+              a: ({ ...p }) => <span className="text-foreground" {...p} />,
+              img: () => null,
               strong: ({ ...p }) => <strong className="font-medium text-foreground" {...p} />,
             }}
           >
@@ -312,16 +305,7 @@ function DoneView({
   );
 }
 
-// ─── 隐私声明 ────────────────────────────────────────────
-function PrivacyNotice({ className }: { className?: string }) {
-  return (
-    <p className={`text-center text-xs text-muted-foreground ${className ?? ""}`}>
-      评估仅在本地进行，数据不会上传
-    </p>
-  );
-}
-
-// ─── 评估卡片（逐条展示用，保留分数条样式） ───────────────
+// ─── 评估卡片（条目粒度，含 targetType 标签） ─────────────
 function scoreColor(score: number): string {
   if (score >= 7) return "bg-status-confirmed/10 text-status-confirmed";
   if (score >= 4) return "bg-status-pending/10 text-status-pending";
@@ -339,7 +323,12 @@ function ScoreBadge({ label, score }: { label: string; score: number }) {
 function EvalCard({ item }: { item: EvaluationItem }) {
   return (
     <div className="rounded-2xl bg-card p-4 ring-1 ring-border animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <p className="mb-2 text-sm text-foreground">{item.originalText}</p>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+          {TARGET_LABELS[item.targetType] ?? item.targetType}
+        </span>
+        <p className="text-sm text-foreground">{item.originalText}</p>
+      </div>
       <div className="mb-3 flex flex-wrap gap-2">
         <ScoreBadge label="综合" score={item.overallScore} />
         <ScoreBadge label="相关" score={item.relevance} />

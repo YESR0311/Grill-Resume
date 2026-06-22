@@ -1,6 +1,16 @@
 "use client";
 
-import { Bold, Italic, Underline as UnderlineIcon, Strikethrough, SlidersHorizontal } from "lucide-react";
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  SlidersHorizontal,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -113,6 +123,135 @@ function InlineMarkControls() {
       {disabled && (
         <p className="mt-1.5 text-xs text-muted-foreground">先点击一条要点再设置格式。</p>
       )}
+
+      {/* 新增格式控制 */}
+      <div className="mt-4 space-y-3">
+        {/* 字号 */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">字号</label>
+          <select
+            disabled={disabled}
+            onChange={(e) => editor?.chain().focus().setFontSize(e.target.value).run()}
+            className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-40"
+          >
+            <option value="">默认</option>
+            <option value="10px">10pt</option>
+            <option value="12px">12pt</option>
+            <option value="14px">14pt</option>
+            <option value="16px">16pt</option>
+            <option value="18px">18pt</option>
+            <option value="20px">20pt</option>
+            <option value="24px">24pt</option>
+          </select>
+        </div>
+
+        {/* 字重 */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">字重</label>
+          <select
+            disabled={disabled}
+            onChange={(e) => editor?.chain().focus().setFontWeight(e.target.value).run()}
+            className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-40"
+          >
+            <option value="">默认</option>
+            <option value="300">Light (300)</option>
+            <option value="400">Regular (400)</option>
+            <option value="500">Medium (500)</option>
+            <option value="600">Semibold (600)</option>
+            <option value="700">Bold (700)</option>
+          </select>
+        </div>
+
+        {/* 对齐方式 */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">对齐</label>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+              className={`flex h-8 flex-1 items-center justify-center rounded border transition disabled:opacity-40 ${
+                editor?.isActive({ textAlign: "left" })
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              <AlignLeft size={14} />
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+              className={`flex h-8 flex-1 items-center justify-center rounded border transition disabled:opacity-40 ${
+                editor?.isActive({ textAlign: "center" })
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              <AlignCenter size={14} />
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+              className={`flex h-8 flex-1 items-center justify-center rounded border transition disabled:opacity-40 ${
+                editor?.isActive({ textAlign: "right" })
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              <AlignRight size={14} />
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().setTextAlign("justify").run()}
+              className={`flex h-8 flex-1 items-center justify-center rounded border transition disabled:opacity-40 ${
+                editor?.isActive({ textAlign: "justify" })
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              <AlignJustify size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* 行距 */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">行距</label>
+          <select
+            disabled={disabled}
+            onChange={(e) => editor?.chain().focus().setLineHeight(e.target.value).run()}
+            className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-40"
+          >
+            <option value="">默认</option>
+            <option value="1.0">1.0</option>
+            <option value="1.15">1.15</option>
+            <option value="1.5">1.5</option>
+            <option value="1.75">1.75</option>
+            <option value="2.0">2.0</option>
+          </select>
+        </div>
+
+        {/* 字间距 */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">字间距</label>
+          <select
+            disabled={disabled}
+            onChange={(e) => editor?.chain().focus().setLetterSpacing(e.target.value).run()}
+            className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-40"
+          >
+            <option value="">默认</option>
+            <option value="0px">0px</option>
+            <option value="1px">1px</option>
+            <option value="2px">2px</option>
+            <option value="3px">3px</option>
+            <option value="4px">4px</option>
+            <option value="5px">5px</option>
+          </select>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getProfile } from "@/features/profile/store";
 import { getReachableSteps } from "@/features/profile/step-access";
+import { AppLayoutWithSidebar } from "@/components/layout/AppLayoutWithSidebar";
+import { StepNavSidebar } from "@/components/layout/StepNavSidebar";
 import { ProfileEditor } from "@/components/profile/ProfileEditor";
 import { StepNav } from "@/components/profile/StepNav";
 
@@ -9,9 +11,7 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ id: string }> };
 
 /**
- * 第二步·档案编辑页——工作台编辑器样式。
- * 打开即展示档案各字段，用户可自主自定义修改。
- * 此页在问答汇总完成后跳转来，或用户直接从侧栏进入已有档案。
+ * 档案编辑页：侧边栏显示步骤导航 + 顶部导航 + 编辑器主区
  */
 export default async function ProfilePage({ params }: Props) {
   const { id } = await params;
@@ -21,11 +21,21 @@ export default async function ProfilePage({ params }: Props) {
   const reachableSteps = await getReachableSteps(id);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <StepNav profileId={id} current="profile" reachableSteps={reachableSteps} />
-      <div className="px-6 py-8">
-        <ProfileEditor profile={profile} />
+    <AppLayoutWithSidebar
+      sidebar={
+        <StepNavSidebar
+          currentStep="profile"
+          reachableSteps={reachableSteps}
+          profileId={id}
+        />
+      }
+    >
+      <div className="flex h-full flex-col bg-background">
+        <StepNav profileId={id} current="profile" reachableSteps={reachableSteps} />
+        <div className="flex-1 overflow-y-auto px-6 py-8">
+          <ProfileEditor profile={profile} />
+        </div>
       </div>
-    </div>
+    </AppLayoutWithSidebar>
   );
 }

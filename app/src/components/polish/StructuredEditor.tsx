@@ -6,6 +6,14 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
+import {
+  FontSize,
+  LetterSpacing,
+  FontWeight,
+  LineHeight,
+  TextAlign,
+  FontFamily,
+} from "@/features/polish/extensions";
 import { Plus, Trash2 } from "lucide-react";
 import { useDraft } from "./DraftProvider";
 import { useActiveEditor } from "./active-editor";
@@ -227,7 +235,18 @@ function RichBullet({ value, onChange }: { value: string; onChange: (html: strin
   const { setEditor } = useActiveEditor();
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline, TextStyle, Color],
+    extensions: [
+      StarterKit,
+      Underline,
+      TextStyle,
+      Color,
+      FontSize,
+      LetterSpacing,
+      FontWeight,
+      LineHeight,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      FontFamily.configure({ types: ["textStyle"] }),
+    ],
     content: value || "<p></p>",
     immediatelyRender: false,
     editorProps: {

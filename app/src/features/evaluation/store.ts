@@ -8,7 +8,6 @@ import { EvaluationReportSchema, EvaluationItemSchema, type EvaluationReport, ty
  *
  * 主存储：evaluation_reports + evaluation_items 规范化表（engine 逐条写入）。
  * 读路径统一走 SQLite，使刷新后逐条结果可读、StepNav polish 可达性正确。
- * 旧 data/evaluate/<profileId>.json 读路径已删除；如需回滚到双写期，git revert 即可。
  */
 
 type ReportRow = {
@@ -23,7 +22,6 @@ type ItemRow = {
   id: string;
   target_type: string | null;
   target_id: string | null;
-  bullet_id: string | null;
   original_text: string | null;
   relevance: number;
   specificity: number;
@@ -44,7 +42,6 @@ function rowToItem(row: ItemRow): EvaluationItem {
     id: row.id,
     targetType: row.target_type ?? "experience",
     targetId: row.target_id ?? "",
-    bulletId: row.bullet_id ?? undefined,
     originalText: row.original_text ?? "",
     relevance: row.relevance,
     specificity: row.specificity,
@@ -53,7 +50,7 @@ function rowToItem(row: ItemRow): EvaluationItem {
     expression: row.expression,
     scarcity: row.scarcity,
     overallScore: row.overall_score,
-    searchEvidence: row.search_evidence ?? "",
+    searchEvidence: "",
     searchSources: [],
     suggestion: row.suggestion ?? "",
     suggestedRewrite: row.suggested_rewrite ?? "",
@@ -75,7 +72,7 @@ export async function getEvaluationReport(profileId: string): Promise<Evaluation
 
   const itemRows = db
     .prepare(
-      `SELECT id, target_type, target_id, bullet_id, original_text,
+      `SELECT id, target_type, target_id, original_text,
               relevance, specificity, credibility, recency, expression, scarcity, overall_score,
               search_evidence, suggestion, suggested_rewrite, status
        FROM evaluation_items WHERE report_id = ? ORDER BY rowid`,
@@ -127,10 +124,10 @@ export async function saveEvaluationReport(report: EvaluationReport): Promise<Ev
 
     const insert = db.prepare(
       `INSERT INTO evaluation_items
-         (id, report_id, target_type, target_id, bullet_id, original_text,
+         (id, report_id, target_type, target_id, original_text,
           relevance, specificity, credibility, recency, expression, scarcity, overall_score,
           search_evidence, suggestion, suggested_rewrite, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const item of validated.items) {
       insert.run(
@@ -138,7 +135,6 @@ export async function saveEvaluationReport(report: EvaluationReport): Promise<Ev
         reportId,
         item.targetType,
         item.targetId,
-        item.bulletId ?? null,
         item.originalText,
         item.relevance,
         item.specificity,

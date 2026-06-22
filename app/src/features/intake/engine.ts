@@ -13,7 +13,7 @@ import { getIntakeLog, appendMessages } from "./store";
 // ─── 问答维度 ────────────────────────────────────────────
 // 脚本定义必须覆盖的维度，靠 prompt 引导模型逐一覆盖
 
-import { type IntakeDimension } from "./constants";
+import { type IntakeDimension, INTAKE_DIMENSIONS, INTAKE_DIMENSION_LABELS } from "./constants";
 
 // ─── 系统提示词（AI 行为约束核心，集中到 prompts/，design §6.3） ────
 
@@ -104,24 +104,43 @@ export async function runIntakeRound(
   // 注入「已采集经历摘要」context：让 LLM 补充某段既有经历时回传其 id，merge 按 id 精确匹配，
   // 避免同一经历因 organization 跨轮时有时无（label 波动）被重复创建、bullets 分散。
   // 每轮重新生成（反映最新档案）；不写入 intake log、不受 MAX_HISTORY_TURNS 截断。
-  const contextMsg: ChatMessage = { role: "system", content: buildExperienceDigest(profile) };
+  const experienceMsg: ChatMessage = { role: "system", content: buildExperienceDigest(profile) };
+
+  // 注入「已覆盖/未覆盖维度」context：引导 LLM 优先追问欠缺维度
+  const dimensionMsg: ChatMessage = { role: "system", content: buildDimensionDigest(profile) };
 
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
-    contextMsg,
+    experienceMsg,
+    dimensionMsg,
     ...recentHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user", content: userMessage },
   ];
 
   const { text } = await chat(route.conn, route.model, { messages, temperature: 0.7, json: true });
 
-  // 模型按 json mode 输出单一 JSON 对象（reply + collected + coveredDimensions + phase）
+  // 解析容错三级（design §A1）：
+  //   ① LLM schema 成功 → 用之。
+  //   ② 失败但 text 非空 → 把整段 text 当 reply（保证对话不断），collected 空、维度/phase 沿用。
+  //   ③ text 也空 → 真异常 fallback。
   let result: z.infer<typeof LlmOutputSchema>;
   const parsed = LlmOutputSchema.safeParse(extractJson(text));
   if (parsed.success) {
     result = parsed.data;
   } else {
-    result = { reply: "", collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [] }, coveredDimensions: [], phase: "basics" };
+    const raw = text.trim();
+    if (raw) {
+      // ② 模型输出了自由文本而非 JSON，或 extractJson 失败：至少把回复展示给用户
+      result = {
+        reply: raw,
+        collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [] },
+        coveredDimensions: profile.intakeStatus.coveredDimensions,
+        phase: profile.intakeStatus.phase,
+      };
+    } else {
+      // ③ 真正异常
+      result = { reply: "", collected: { name: null, title: null, email: null, phone: null, location: null, experiences: [], projects: [], skills: [], education: [] }, coveredDimensions: [], phase: "basics" };
+    }
   }
 
   const replyText = result.reply.trim() || "抱歉，我没太理解，能再补充一下吗？";
@@ -169,6 +188,32 @@ function buildExperienceDigest(profile: PersonProfile): string {
     })
     .join("\n");
   return `【已采集经历，补充其成果/信息时请在该经历对象里带上对应 id】\n${lines}`;
+}
+
+/**
+ * 生成「已覆盖/未覆盖维度」上下文（design §A2）。
+ * 引导 LLM 优先追问未覆盖维度，最大化档案填充。
+ */
+function buildDimensionDigest(profile: PersonProfile): string {
+  const covered = new Set(profile.intakeStatus.coveredDimensions);
+  const all = [...INTAKE_DIMENSIONS];
+  const uncovered = all.filter((d) => !covered.has(d));
+  const coveredStr = all
+    .filter((d) => covered.has(d))
+    .map((d) => INTAKE_DIMENSION_LABELS[d] ?? d)
+    .join("、");
+  const uncoveredStr = uncovered
+    .map((d) => INTAKE_DIMENSION_LABELS[d] ?? d)
+    .join("、");
+  let msg = "【当前档案各维度采集状态】\n";
+  if (coveredStr) msg += `已覆盖：${coveredStr}\n`;
+  if (uncoveredStr) msg += `尚未覆盖：${uncoveredStr}\n`;
+  if (uncoveredStr) {
+    msg += "请优先追问未覆盖维度，每次 1-2 个具体问题，引导用户补充这些信息。\n";
+  } else {
+    msg += "所有维度均已覆盖，可以深挖已有信息的量化细节或确认用户是否还有要补充的内容。\n";
+  }
+  return msg;
 }
 
 // ─── Merge ────────────────────────────────────────────────

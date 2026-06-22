@@ -231,7 +231,9 @@ const SCHEMA_STATEMENTS: readonly string[] = [
 // v3（Phase 3）：profiles 去掉 data 兼容 blob 列——基础字段落实列、intakeStatus 走 intake_status JSON 列，
 //   嵌套子实体走规范化子表。DROP 前先把仅存在于 blob 的数据回填到列/子表，保证升级不丢数据。
 // CREATE TABLE IF NOT EXISTS 不会给已存在的旧表补列，故对旧库做 ALTER/回填/DROP 迁移。
-const SCHEMA_VERSION = 3;
+// v4（Sprint 2, 06-21-FE-R2）：evaluation_items UNIQUE(report_id, bullet_id) → UNIQUE(report_id, target_type, target_id)，
+//   以支持按条目整体评估。旧 evaluation_reports + evaluation_items 全部清空（bullet 索引无法映射到条目粒度）。
+const SCHEMA_VERSION = 4;
 
 function hasColumn(db: Database.Database, table: string, column: string): boolean {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -427,6 +429,18 @@ function applyForwardMigrations(db: Database.Database, fromVersion: number): voi
   // v2 → v3：profiles 去 blob（回填后 DROP data 列），幂等。
   if (fromVersion < 3) {
     migrateProfilesDropBlob(db);
+  }
+  // v3 → v4：evaluation_items UNIQUE(report_id, bullet_id) → UNIQUE(report_id, target_type, target_id)；
+  // 旧评估数据全部清空（bullet 索引无法映射到条目粒度）。
+  if (fromVersion < 4) {
+    if (tableExists(db, "evaluation_items")) {
+      db.prepare("DELETE FROM evaluation_items").run();
+      db.prepare("DELETE FROM evaluation_reports").run();
+      db.prepare("DROP INDEX IF EXISTS evaluation_items_report_bullet_idx").run();
+      db.prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS evaluation_items_report_target_idx ON evaluation_items(report_id, target_type, target_id)",
+      ).run();
+    }
   }
 }
 

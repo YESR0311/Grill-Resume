@@ -232,8 +232,8 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
   }, [handleSave, router, data.id]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl pb-24">
-      {/* 顶栏 */}
+    <div className="flex h-full flex-col">
+      {/* 顶栏 — 固定不滚动 */}
       <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
         <h1 className="text-xl font-semibold">人物档案编辑</h1>
         <Button size="lg" variant="outline" onClick={handleSave} disabled={saving}>
@@ -241,6 +241,10 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
           {saving ? "保存中…" : "保存"}
         </Button>
       </div>
+
+      {/* 表单区 — 内层滚动 */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-5xl pb-24">
 
       <Tabs value={step} onValueChange={(v) => handleSwitchStep(v as Step)}>
         <TabsList className="mb-6">
@@ -266,7 +270,7 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
               value={data.summary}
               onChange={(e) => dispatch({ type: "UPDATE_FIELD", field: "summary", value: e.target.value })}
               rows={3}
-              className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="form-textarea"
             />
           </div>
         </TabsContent>
@@ -282,13 +286,13 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                     value={exp.organization}
                     onChange={(e) => dispatch({ type: "UPDATE_EXPERIENCE", id: exp.id, patch: { organization: e.target.value } })}
                     placeholder="公司/组织"
-                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    className="form-input"
                   />
                   <input
                     value={exp.role}
                     onChange={(e) => dispatch({ type: "UPDATE_EXPERIENCE", id: exp.id, patch: { role: e.target.value } })}
                     placeholder="职位"
-                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    className="form-input"
                   />
                 </div>
                 <div className="mt-2 flex gap-4">
@@ -296,13 +300,13 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                     value={exp.startDate}
                     onChange={(e) => dispatch({ type: "UPDATE_EXPERIENCE", id: exp.id, patch: { startDate: e.target.value } })}
                     placeholder="开始时间"
-                    className="w-32 rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    className="form-input w-32"
                   />
                   <input
                     value={exp.endDate}
                     onChange={(e) => dispatch({ type: "UPDATE_EXPERIENCE", id: exp.id, patch: { endDate: e.target.value } })}
                     placeholder="结束时间"
-                    className="w-32 rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    className="form-input w-32"
                   />
                 </div>
                 <div className="mt-3 space-y-2">
@@ -313,7 +317,7 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                         value={b.text}
                         onChange={(e) => dispatch({ type: "UPDATE_BULLET", expId: exp.id, bulletId: b.id, text: e.target.value })}
                         placeholder="经历要点"
-                        className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                        className="form-input flex-1"
                       />
                       <button
                         type="button"
@@ -350,13 +354,13 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                     value={proj.name}
                     onChange={(e) => dispatch({ type: "UPDATE_PROJECT", id: proj.id, patch: { name: e.target.value } })}
                     placeholder="项目名称"
-                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    className="form-input"
                   />
                   <input
                     value={proj.role}
                     onChange={(e) => dispatch({ type: "UPDATE_PROJECT", id: proj.id, patch: { role: e.target.value } })}
                     placeholder="担任角色"
-                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    className="form-input"
                   />
                 </div>
                 <input
@@ -370,7 +374,7 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                   onChange={(e) => dispatch({ type: "UPDATE_PROJECT", id: proj.id, patch: { description: e.target.value } })}
                   placeholder="项目描述"
                   rows={2}
-                  className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                  className="form-textarea mt-2"
                 />
               </div>
             ))}
@@ -433,13 +437,13 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                   value={edu.institution}
                   onChange={(e) => dispatch({ type: "UPDATE_EDUCATION", id: edu.id, patch: { institution: e.target.value } })}
                   placeholder="学校"
-                  className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                  className="form-input"
                 />
                 <input
                   value={edu.degree}
                   onChange={(e) => dispatch({ type: "UPDATE_EDUCATION", id: edu.id, patch: { degree: e.target.value } })}
                   placeholder="学位"
-                  className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                  className="form-input"
                 />
                 <input
                   value={edu.field}
@@ -451,13 +455,13 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
                   value={edu.startDate}
                   onChange={(e) => dispatch({ type: "UPDATE_EDUCATION", id: edu.id, patch: { startDate: e.target.value } })}
                   placeholder="开始时间"
-                  className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                  className="form-input"
                 />
                 <input
                   value={edu.endDate}
                   onChange={(e) => dispatch({ type: "UPDATE_EDUCATION", id: edu.id, patch: { endDate: e.target.value } })}
                   placeholder="结束时间"
-                  className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                  className="form-input"
                 />
               </div>
             ))}
@@ -465,6 +469,8 @@ export function ProfileEditor({ profile: initial }: { profile: PersonProfile }) 
           </div>
         </TabsContent>
       </Tabs>
+        </div>
+      </div>
 
       {/* 底部操作栏 */}
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/95 px-6 py-4 backdrop-blur">

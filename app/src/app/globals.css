@@ -1,157 +1,169 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* 暗色跟随系统 prefers-color-scheme（design §设计系统：product 工具夜间使用）。
-   纯 CSS media，无 JS、无水合闪烁；dark: 工具类与 token 切换同源一致。 */
-@custom-variant dark (@media (prefers-color-scheme: dark));
-
 /*
- * Grill-Resume 主题 token（OKLCH，shadcn/ui 兼容）
- * 调性：克制专业工具感，中性冷灰基底 + 单一 teal 强调（评估/分析可信感）。
- * 见 .trellis tasks/.../research/visual-direction.md。
- * 语义状态色：confirmed=emerald / pending=amber / failed=rose（仅状态语义）。
- * 不用纯黑纯白；对比度达 WCAG AA。
+ * Grill-Resume design_sense 暖色系统（2026-06-21 前端改造）
+ * 调性：温暖专业、人文感、编辑体验
+ * 核心色：warm cream 背景 + terracotta 强调 + serif/sans 配对
+ * 对比度达 WCAG AA，无纯黑纯白
  */
 
 :root {
-  --radius: 0.625rem;
+  --radius: 1rem; /* 2xl for cards */
 
-  /* 中性冷灰基底（light） */
-  --background: oklch(0.985 0.002 247);     /* 近白偏冷 */
-  --foreground: oklch(0.21 0.013 252);      /* 深冷灰，非纯黑 */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.013 252);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.013 252);
+  /* 暖色基底（design_sense palette） */
+  --color-bg-cream: #F7F4EF;           /* 主背景 */
+  --color-surface-light: #FBF9F5;      /* 卡片/表面 */
+  --color-surface-white: #FFFFFF;      /* 最亮表面 */
+  --color-warm-hairline: #E7E1D7;      /* 边框 */
 
-  /* 单一强调：teal（冷、理性、可信） */
-  --primary: oklch(0.58 0.094 213);
-  --primary-foreground: oklch(0.985 0.003 213);
+  --color-ink: #1F2421;                /* 主文字 */
+  --color-muted-text: #5C635D;         /* 次要文字 */
+  --color-charcoal: #1F2421;           /* 深色区域背景 */
 
-  --secondary: oklch(0.967 0.004 247);
-  --secondary-foreground: oklch(0.28 0.013 252);
-  --muted: oklch(0.967 0.004 247);
-  --muted-foreground: oklch(0.53 0.012 252);
-  --accent: oklch(0.95 0.018 213);          /* teal 极浅 tint，用于 hover/选中 */
-  --accent-foreground: oklch(0.34 0.05 213);
+  --color-terracotta: #C4612F;         /* 强调色 */
+  --color-terracotta-hover: #A94E22;   /* hover 态 */
+  --color-terracotta-tint: #F2E3D6;    /* 浅色 tint（pills/chips） */
 
-  --destructive: oklch(0.585 0.18 17);      /* rose/red */
-  --destructive-foreground: oklch(0.985 0.003 17);
+  /* 语义状态色（保留原有逻辑） */
+  --color-status-confirmed: #10B981;   /* emerald */
+  --color-status-pending: #F59E0B;     /* amber */
+  --color-status-failed: #EF4444;      /* rose */
 
-  --border: oklch(0.922 0.005 247);
-  --input: oklch(0.922 0.005 247);
-  --ring: oklch(0.58 0.094 213);
-
-  /* 语义状态色（仅状态语义，非装饰） */
-  --status-confirmed: oklch(0.62 0.14 155);   /* emerald */
-  --status-confirmed-foreground: oklch(0.985 0.01 155);
-  --status-pending: oklch(0.75 0.14 80);      /* amber */
-  --status-pending-foreground: oklch(0.27 0.05 80);
-  --status-failed: oklch(0.585 0.18 17);      /* rose */
-  --status-failed-foreground: oklch(0.985 0.003 17);
-
-  /* 阶段进度色（grill→evaluate→polish→export，teal 单色明度梯度） */
-  --stage-grill: oklch(0.58 0.094 213);
-  --stage-evaluate: oklch(0.55 0.10 220);
-  --stage-polish: oklch(0.52 0.105 228);
-  --stage-export: oklch(0.49 0.11 236);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-  /* 中性冷灰基底（dark），非纯黑 */
-  --background: oklch(0.185 0.012 252);
-  --foreground: oklch(0.96 0.003 247);
-  --card: oklch(0.225 0.013 252);
-  --card-foreground: oklch(0.96 0.003 247);
-  --popover: oklch(0.225 0.013 252);
-  --popover-foreground: oklch(0.96 0.003 247);
-
-  --primary: oklch(0.72 0.10 205);          /* dark 下 teal 提亮保对比 */
-  --primary-foreground: oklch(0.20 0.02 213);
-
-  --secondary: oklch(0.28 0.013 252);
-  --secondary-foreground: oklch(0.96 0.003 247);
-  --muted: oklch(0.28 0.013 252);
-  --muted-foreground: oklch(0.70 0.012 252);
-  --accent: oklch(0.32 0.03 213);
-  --accent-foreground: oklch(0.92 0.02 205);
-
-  --destructive: oklch(0.70 0.16 18);
-  --destructive-foreground: oklch(0.20 0.02 18);
-
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.72 0.10 205);
-
-  --status-confirmed: oklch(0.72 0.14 158);
-  --status-confirmed-foreground: oklch(0.18 0.02 158);
-  --status-pending: oklch(0.80 0.13 82);
-  --status-pending-foreground: oklch(0.22 0.04 82);
-  --status-failed: oklch(0.70 0.16 18);
-  --status-failed-foreground: oklch(0.20 0.02 18);
-
-  --stage-grill: oklch(0.72 0.10 205);
-  --stage-evaluate: oklch(0.70 0.105 214);
-  --stage-polish: oklch(0.68 0.11 224);
-  --stage-export: oklch(0.66 0.115 234);
-  }
+  /* 阶段进度色（改为 terracotta 系渐变） */
+  --color-stage-intake: #C4612F;       /* intake（问答） */
+  --color-stage-evaluate: #B85729;     /* evaluate（评估） */
+  --color-stage-polish: #AC4D23;       /* polish（润色） */
+  --color-stage-export: #A0431D;       /* export（导出） */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  /* Tailwind v4 color tokens */
+  --color-background: var(--color-bg-cream);
+  --color-foreground: var(--color-ink);
 
-  --color-status-confirmed: var(--status-confirmed);
-  --color-status-confirmed-foreground: var(--status-confirmed-foreground);
-  --color-status-pending: var(--status-pending);
-  --color-status-pending-foreground: var(--status-pending-foreground);
-  --color-status-failed: var(--status-failed);
-  --color-status-failed-foreground: var(--status-failed-foreground);
+  --color-card: var(--color-surface-white);
+  --color-card-foreground: var(--color-ink);
 
-  --color-stage-grill: var(--stage-grill);
-  --color-stage-evaluate: var(--stage-evaluate);
-  --color-stage-polish: var(--stage-polish);
-  --color-stage-export: var(--stage-export);
+  --color-primary: var(--color-terracotta);
+  --color-primary-foreground: #FFFFFF;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --color-secondary: var(--color-surface-light);
+  --color-secondary-foreground: var(--color-ink);
 
-  /* 字体：中文 system stack + 拉丁/等宽 */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "JetBrains Mono", "SFMono-Regular",
-    Menlo, monospace;
+  --color-muted: var(--color-surface-light);
+  --color-muted-foreground: var(--color-muted-text);
+
+  --color-accent: var(--color-terracotta-tint);
+  --color-accent-foreground: var(--color-terracotta);
+
+  --color-border: var(--color-warm-hairline);
+  --color-input: var(--color-warm-hairline);
+  --color-ring: var(--color-terracotta);
+
+  /* 圆角系统 */
+  --radius-sm: 0.5rem;   /* 8px */
+  --radius-md: 0.75rem;  /* 12px */
+  --radius-lg: 1rem;     /* 16px - cards */
+  --radius-xl: 1.5rem;   /* 24px */
+  --radius-pill: 999px;  /* 全圆角按钮 */
+
+  /* 字体系统（design_sense） */
+  --font-display: "Playfair Display", "DM Serif Display", serif;
+  --font-sans: "Inter", var(--font-geist-sans), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "JetBrains Mono", monospace;
 }
 
+/* 全局表单样式（Sprint 1.2） */
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 0.75rem 1rem; /* px-4 py-3 */
+  font-size: 1rem; /* text-base */
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-surface-white);
+  border: 1px solid var(--color-warm-hairline);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-terracotta);
+  box-shadow: 0 0 0 3px rgba(196, 97, 47, 0.1);
+}
+
+.form-textarea {
+  min-height: 144px; /* 6 rows × 24px line-height */
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-muted-text);
+}
+
+/* 按钮基础样式（design_sense pill buttons） */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  border-radius: var(--radius-pill); /* 999px */
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--color-terracotta);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background: var(--color-terracotta-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(196, 97, 47, 0.2);
+}
+
+.btn-secondary {
+  background: var(--color-surface-light);
+  color: var(--color-ink);
+  border: 1px solid var(--color-warm-hairline);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-white);
+  transform: translateY(-1px);
+}
+
+/* 全局重置 */
 * {
-  border-color: var(--border);
+  border-color: var(--color-border);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
 }
 
 @media print {
