@@ -285,4 +285,4 @@ rm -rf app/.workspace    # 删掉数据库和加密配置，下次启动会重�
 
 ## 📄 License
 
-个人项目。
+本项目采用 [MIT License](./LICENSE) 开源，可自由使用、修改与分发。
