@@ -1,11 +1,12 @@
 import type { ResumeDraft, ResumeStyle } from "../types";
-import { PhotoPlaceholder } from "./PhotoPlaceholder";
+import { TopHeader } from "./TopHeader";
+import { getTemplateDesign } from "../template-style";
 
 /**
  * T1-Classic 模板：时序·简约版
  *
  * 特点：
- * - 黑白极简，Helvetica 无衬线
+ * - 白蓝·经典主题，Inter 无衬线
  * - ATS 友好，适合大多数岗位
  * - 证件照位置：右上角
  */
@@ -16,6 +17,7 @@ interface T1ClassicProps {
 }
 
 export function T1Classic({ draft, style }: T1ClassicProps) {
+  const design = getTemplateDesign("t1-classic");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -25,32 +27,8 @@ export function T1Classic({ draft, style }: T1ClassicProps) {
   };
 
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      {/* 证件照占位符 */}
-      <PhotoPlaceholder position="right" />
-
-      {/* 顶部基础信息 */}
-      <header className="mb-6">
-        <h1
-          className="text-3xl font-bold mb-2"
-          style={{ color: style.colorScheme.primary }}
-        >
-          {draft.name}
-        </h1>
-        <div
-          className="text-base mb-1"
-          style={{ color: style.colorScheme.accent }}
-        >
-          {draft.title}
-        </div>
-        <div
-          className="text-sm flex gap-4"
-          style={{ color: style.colorScheme.accent }}
-        >
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} />
 
       {/* 按 sectionOrder 渲染各模块 */}
       {style.sectionOrder.map((key) => (

@@ -1,8 +1,10 @@
 import type { ResumeDraft, ResumeStyle } from "../types";
-import { PhotoPlaceholder } from "./PhotoPlaceholder";
+import { TopHeader } from "./TopHeader";
+import { getTemplateDesign } from "../template-style";
 
-/** H2-Achievement: 混合·成就导向 */
+/** H2-Achievement: 混合·成就导向（时尚·创意主题，证件照在左） */
 export function H2Achievement({ draft, style }: { draft: ResumeDraft; style: ResumeStyle }) {
+  const design = getTemplateDesign("h2-achievement");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -11,18 +13,8 @@ export function H2Achievement({ draft, style }: { draft: ResumeDraft; style: Res
     padding: `${style.margins.top}mm ${style.margins.right}mm ${style.margins.bottom}mm ${style.margins.left}mm`,
   };
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      <PhotoPlaceholder position="right" />
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: style.colorScheme.primary, fontFamily: "'Playfair Display', serif" }}>
-          {draft.name}
-        </h1>
-        <div className="text-base mb-1" style={{ color: style.colorScheme.accent }}>{draft.title}</div>
-        <div className="text-sm flex gap-4" style={{ color: style.colorScheme.accent }}>
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} variant="serif" />
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-5">
           {key === "summary" && draft.summary && (
@@ -112,8 +104,9 @@ export function H2Achievement({ draft, style }: { draft: ResumeDraft; style: Res
   );
 }
 
-/** H3-Project: 混合·项目导向 */
+/** H3-Project: 混合·项目导向（白蓝·经典，证件照在左） */
 export function H3Project({ draft, style }: { draft: ResumeDraft; style: ResumeStyle }) {
+  const design = getTemplateDesign("h3-project");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -122,16 +115,8 @@ export function H3Project({ draft, style }: { draft: ResumeDraft; style: ResumeS
     padding: `${style.margins.top}mm ${style.margins.right}mm ${style.margins.bottom}mm ${style.margins.left}mm`,
   };
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      <PhotoPlaceholder position="left" />
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: style.colorScheme.primary }}>{draft.name}</h1>
-        <div className="text-base mb-1" style={{ color: style.colorScheme.accent }}>{draft.title}</div>
-        <div className="text-sm flex gap-4" style={{ color: style.colorScheme.accent }}>
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} />
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-5">
           {key === "summary" && draft.summary && (
@@ -215,8 +200,9 @@ export function H3Project({ draft, style }: { draft: ResumeDraft; style: ResumeS
   );
 }
 
-/** F1-Functional: 功能·转行版 */
+/** F1-Functional: 功能·转行版（论文·传统主题，无证件照） */
 export function F1Functional({ draft, style }: { draft: ResumeDraft; style: ResumeStyle }) {
+  const design = getTemplateDesign("f1-functional");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -225,16 +211,8 @@ export function F1Functional({ draft, style }: { draft: ResumeDraft; style: Resu
     padding: `${style.margins.top}mm ${style.margins.right}mm ${style.margins.bottom}mm ${style.margins.left}mm`,
   };
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      <PhotoPlaceholder position="right" />
-      <header className="mb-6 text-center">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: style.colorScheme.primary }}>{draft.name}</h1>
-        <div className="text-base mb-1" style={{ color: style.colorScheme.accent }}>{draft.title}</div>
-        <div className="text-sm flex gap-4 justify-center" style={{ color: style.colorScheme.accent }}>
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} />
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-5">
           {key === "summary" && draft.summary && (
@@ -309,8 +287,9 @@ export function F1Functional({ draft, style }: { draft: ResumeDraft; style: Resu
   );
 }
 
-/** A1-ATS: ATS 优化版 */
+/** A1-ATS: ATS 优化版（黑蓝·ATS，无证件照，ats variant） */
 export function A1ATS({ draft, style }: { draft: ResumeDraft; style: ResumeStyle }) {
+  const design = getTemplateDesign("a1-ats");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -319,13 +298,8 @@ export function A1ATS({ draft, style }: { draft: ResumeDraft; style: ResumeStyle
     padding: `${style.margins.top}mm ${style.margins.right}mm ${style.margins.bottom}mm ${style.margins.left}mm`,
   };
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      <PhotoPlaceholder position="right" />
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: style.colorScheme.primary }}>{draft.name}</h1>
-        <div className="text-sm mb-1">{draft.title}</div>
-        <div className="text-xs">{draft.email} | {draft.phone}</div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} variant="ats" />
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-4">
           {key === "summary" && draft.summary && (

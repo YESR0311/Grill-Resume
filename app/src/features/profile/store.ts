@@ -106,7 +106,7 @@ type MetaRow = {
 };
 
 function parseIntakeStatus(raw: string | null): PersonProfile["intakeStatus"] {
-  const fallback = { phase: "basics" as const, coveredDimensions: [] as string[], totalRounds: 0 };
+  const fallback = { phase: "basics" as const, coveredDimensions: [] as string[], partialDimensions: [] as string[], totalRounds: 0 };
   if (!raw) return fallback;
   try {
     const parsed = JSON.parse(raw);

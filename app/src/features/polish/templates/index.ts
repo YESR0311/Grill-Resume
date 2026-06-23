@@ -4,14 +4,6 @@
  * 导出所有 9 个模板组件，供 TemplatePreview 和导出功能使用。
  */
 
-export { T1Classic } from "./T1-Classic";
-export { T2Modern } from "./T2-Modern";
-export { T3Warm } from "./T3-Warm";
-export { T4Compact } from "./T4-Compact";
-export { H1Skills } from "./H1-Skills";
-export { H2Achievement, H3Project, F1Functional, A1ATS } from "./RemainingTemplates";
-export { PhotoPlaceholder } from "./PhotoPlaceholder";
-
 import type { ResumeDraft, ResumeStyle } from "../types";
 import { T1Classic } from "./T1-Classic";
 import { T2Modern } from "./T2-Modern";
@@ -19,6 +11,22 @@ import { T3Warm } from "./T3-Warm";
 import { T4Compact } from "./T4-Compact";
 import { H1Skills } from "./H1-Skills";
 import { H2Achievement, H3Project, F1Functional, A1ATS } from "./RemainingTemplates";
+import { PhotoPlaceholder } from "./PhotoPlaceholder";
+import { TopHeader } from "./TopHeader";
+
+export {
+  T1Classic,
+  T2Modern,
+  T3Warm,
+  T4Compact,
+  H1Skills,
+  H3Project,
+  H2Achievement,
+  F1Functional,
+  A1ATS,
+  PhotoPlaceholder,
+  TopHeader,
+};
 
 /**
  * 模板组件映射表

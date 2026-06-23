@@ -6,10 +6,10 @@ import { saveResumeDraft, getResumeDraft } from "@/features/polish/draft-store";
 import type { ResumeDraft } from "@/features/polish/types";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/server-action";
 
-export async function runPolishAction(profileId: string): Promise<ActionResult> {
+export async function runPolishAction(profileId: string, templateId?: string): Promise<ActionResult> {
   if (!profileId) return { ok: false, error: "档案无效" };
   try {
-    const draft = await runPolish(profileId);
+    const draft = await runPolish(profileId, templateId);
     await saveResumeDraft(draft);
     revalidatePath(`/polish/${profileId}`);
     return actionSuccess(undefined);

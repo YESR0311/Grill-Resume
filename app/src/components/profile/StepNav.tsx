@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Settings, Check } from "lucide-react";
+import { Settings, Check, Home } from "lucide-react";
 
 /**
  * 四步流程统一顶栏。展示步骤名 + 当前高亮 + 已完成可跳转。
  * 三步：问答 → 档案/评估 → 润色导出。
+ * 右上角：返回首页 + 设置
  */
 
 export type StepKey = "intake" | "profile" | "evaluate" | "polish";
@@ -63,13 +64,24 @@ export function StepNav({
           );
         })}
       </div>
-      <Link
-        href="/settings"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <Settings size={15} />
-        设置
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          title="返回首页"
+        >
+          <Home size={15} />
+          返回首页
+        </Link>
+        <Link
+          href="/settings"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          title="设置"
+        >
+          <Settings size={15} />
+          设置
+        </Link>
+      </div>
     </nav>
   );
 }

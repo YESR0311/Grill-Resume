@@ -1,11 +1,12 @@
 import type { ResumeDraft, ResumeStyle } from "../types";
-import { PhotoPlaceholder } from "./PhotoPlaceholder";
+import { TopHeader } from "./TopHeader";
+import { getTemplateDesign } from "../template-style";
 
 /**
  * T3-Warm 模板：时序·暖色版
  *
  * 特点：
- * - Playfair Display 衬线标题，暖色系
+ * - 时尚·创意主题（terracotta + Playfair Display 衬线）
  * - 适合创意/设计/市场岗
  * - 证件照位置：右上角
  */
@@ -16,45 +17,19 @@ interface T3WarmProps {
 }
 
 export function T3Warm({ draft, style }: T3WarmProps) {
+  const design = getTemplateDesign("t3-warm");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
     lineHeight: style.lineSpacing,
     color: style.colorScheme.text,
     padding: `${style.margins.top}mm ${style.margins.right}mm ${style.margins.bottom}mm ${style.margins.left}mm`,
-    backgroundColor: "#FBF9F5", // 暖白背景
+    backgroundColor: style.themeId === "fashion" ? "#FBF9F5" : undefined,
   };
 
   return (
     <div className="relative" style={sheetStyle}>
-      <PhotoPlaceholder position="right" />
-
-      <header className="mb-6 text-center">
-        <h1
-          className="text-4xl mb-2"
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontWeight: 600,
-            fontStyle: "italic",
-            color: style.colorScheme.primary,
-          }}
-        >
-          {draft.name}
-        </h1>
-        <div
-          className="text-base mb-1"
-          style={{ color: style.colorScheme.accent }}
-        >
-          {draft.title}
-        </div>
-        <div
-          className="text-sm flex gap-4 justify-center"
-          style={{ color: style.colorScheme.accent }}
-        >
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+      <TopHeader draft={draft} style={style} photo={design.photo} variant="serif" />
 
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-5">

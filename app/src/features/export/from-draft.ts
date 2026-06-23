@@ -234,7 +234,14 @@ export async function buildDraftDocx(draft: ResumeDraft): Promise<Buffer> {
     sections: [
       {
         properties: {
+          // 强制 A4 竖版（210mm × 297mm）。
+          // 此前未显式设 size，docx 默认 Letter portrait，HR 国内/欧洲导出排版错位。
           page: {
+            size: {
+              orientation: "portrait",
+              width: mmToTwips(210),
+              height: mmToTwips(297),
+            },
             margin: {
               top: mmToTwips(m.top),
               bottom: mmToTwips(m.bottom),

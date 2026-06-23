@@ -206,4 +206,30 @@ h1, h2, h3 {
   body {
     background: #ffffff;
   }
+  .resume-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
 }
+
+/* ─── A4 简历纸张（Sprint 9 - 多模板 A4 竖版强制） ──────────────
+ * 物理尺寸 210mm × 297mm；不允许横向，不允许其他尺寸。
+ * .resume-sheet 挂在 StructuredEditor 外层；模板内只管内部排版。
+ */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+.resume-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  background: white;
+  margin: 0 auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* 默认 padding 由模板 sheetStyle.margins 控制（mm 单位），这里不再写死 */
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+

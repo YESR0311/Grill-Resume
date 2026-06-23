@@ -17,13 +17,13 @@ export function HomeHero() {
       </div>
 
       {/* 主标题 */}
-      <h1 className="relative mb-4 font-display text-5xl font-medium tracking-tight text-foreground md:text-6xl">
-        中文简历工坊
+      <h1 className="relative mb-2 font-display text-5xl font-medium tracking-tight text-foreground md:text-6xl">
+        问答式简历生成器
       </h1>
 
-      {/* 副标题 */}
-      <p className="relative mb-8 max-w-xl text-lg text-muted-foreground md:text-xl">
-        AI 驱动的简历制作工具：智能追问采集 → 评估反馈优化 → 专业润色编辑 → 多格式导出
+      {/* 英文副标题 */}
+      <p className="relative mb-8 text-lg text-muted-foreground/70 md:text-xl font-light tracking-wide">
+        Grill-Resume
       </p>
 
       {/* CTA 按钮 */}
@@ -37,7 +37,7 @@ export function HomeHero() {
 
       {/* 底部说明 */}
       <p className="relative mt-6 text-sm text-muted-foreground">
-        无需填写表格 · AI 引导式采集 · 本地数据存储
+        无需填写表格 · AI 引导式采集 · 仅支持 Word 导出
       </p>
     </div>
   );

@@ -8,7 +8,7 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import { saveDraftAction } from "@/app/polish/[id]/actions";
+import { saveDraftAction, runPolishAction, getDraftAction } from "@/app/polish/[id]/actions";
 import { getTemplateStyle } from "@/features/polish/templates";
 import type { ResumeDraft, ResumeStyle } from "@/features/polish/types";
 
@@ -86,7 +86,7 @@ type DraftContextValue = {
   saveError: string | null;
   updateField: (field: keyof ResumeDraft, value: unknown) => void;
   updateStyle: (patch: Partial<ResumeStyle>) => void;
-  applyTemplate: (templateId: string) => void;
+  applyTemplate: (templateId: string) => Promise<void>;
   onSave: () => Promise<boolean>;
 };
 
@@ -114,9 +114,22 @@ export function DraftProvider({
     dispatch({ type: "UPDATE_STYLE", patch });
   }, []);
 
-  const applyTemplate = useCallback((templateId: string) => {
+  const applyTemplate = useCallback(async (templateId: string) => {
+    // 切换模板时，先应用样式立即响应（避免等待润色完成）
     dispatch({ type: "APPLY_TEMPLATE", templateId });
-  }, []);
+    // 然后触发差异化润色（按目标模板的策略重新生成内容）
+    try {
+      const result = await runPolishAction(state.draft.profileId, templateId);
+      if (result.ok) {
+        const newDraft = await getDraftAction(state.draft.profileId);
+        if (newDraft) {
+          dispatch({ type: "REPLACE_DRAFT", draft: newDraft });
+        }
+      }
+    } catch (err) {
+      console.error("按模板差异化润色失败：", err);
+    }
+  }, [state.draft.profileId]);
 
   const onSave = useCallback(async () => {
     dispatch({ type: "SAVE_START" });

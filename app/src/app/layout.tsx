@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { Playfair_Display, Inter } from "next/font/google";
+import Script from "next/script";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
@@ -19,9 +20,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "中文简历工坊",
-  description: "本地优先的中文求职简历制作工具：录入 → 追问 → 评估 → 润色 → 导出",
+  title: "问答式简历生成器",
+  description: "AI 驱动的简历制作工具：智能追问采集 → 评估反馈优化 → 专业润色编辑 → Word 导出",
 };
+
+const themeBootstrap = `(function(){try{
+  var t=localStorage.getItem("theme")||"system";
+  if(t==="dark"){document.documentElement.classList.add("dark");return;}
+  if(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches)
+    {document.documentElement.classList.add("dark");}
+}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -37,17 +45,13 @@ export default function RootLayout({
       <head>
         {/*
           防闪烁 inline script：在浏览器 CSSOM 构建前按 localStorage 设 class。
-          "system" 时监听 prefers-color-scheme；不依赖 React 水合。 */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-(function(){try{
-  var t=localStorage.getItem("theme")||"system";
-  if(t==="dark"){document.documentElement.classList.add("dark");return;}
-  if(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches)
-    {document.documentElement.classList.add("dark");}
-}catch(e){}})();`,
-          }}
+          用 next/script 的 beforeInteractive 策略注入到 <head>，
+          React 不会把它当组件树节点，且会在 CSSOM 前同步执行。
+        */}
+        <Script
+          id="theme-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeBootstrap }}
         />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground antialiased">

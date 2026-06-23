@@ -1,4 +1,4 @@
-import { MessageSquare, BarChart3, Sparkles, FileText } from "lucide-react";
+import { MessageSquare, BarChart3, Sparkles, FileDown } from "lucide-react";
 
 /**
  * 首页特性展示卡片
@@ -20,9 +20,9 @@ const features = [
     description: "一键生成多套简历模板，支持自由编辑和实时预览。",
   },
   {
-    icon: FileText,
-    title: "多格式导出",
-    description: "导出为 DOCX / PDF / Markdown，适配不同投递场景。",
+    icon: FileDown,
+    title: "Word 导出",
+    description: "导出为标准 Word 文档，可直接用于投递或进一步编辑。",
   },
 ];
 

@@ -88,9 +88,11 @@ export const PersonProfileSchema = z.object({
     .object({
       phase: z.enum(["basics", "experience", "project", "skill", "education", "evidence", "ready"]),
       coveredDimensions: z.array(z.string()).default([]),
+      // 半亮维度：解析返回 partial=true（信息不足）。仍推进到下一阶段，但 IntakeProgress 半亮。
+      partialDimensions: z.array(z.string()).default([]),
       totalRounds: z.number().default(0),
     })
-    .default({ phase: "basics", coveredDimensions: [], totalRounds: 0 }),
+    .default({ phase: "basics", coveredDimensions: [], partialDimensions: [], totalRounds: 0 }),
 });
 export type PersonProfile = z.infer<typeof PersonProfileSchema>;
 

@@ -1,76 +1,89 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-import { ChatDialog, type ChatDialogHandle } from "./ChatDialog";
-import { IntakeSidebar } from "./IntakeSidebar";
+import { ChatDialog } from "./ChatDialog";
+import { advanceDimensionAction } from "@/app/intake/[id]/actions";
+import {
+  DIMENSION_OPENING,
+  type IntakeDimension,
+} from "@/features/intake/dimensions";
 import type { PersonProfile } from "@/features/profile/types";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 /**
- * 问答页工作台：组合侧栏 + 对话框，并在二者间共享发送/结束逻辑（design §3.2）。
- * - 「跳过当前问题」复用 ChatDialog.send 发送跳过提示
- * - 「结束问答」由用户主动触发跳转；打字中则延迟，避免输入丢失（H6）
+ * 问答页工作台（intake-v2）：6 阶段自由对话 + 后台静默解析。
+ *
+ * - 维护 currentDimension：当前对话阶段。
+ * - AI 判定（phaseComplete）或用户点「我先到这里」→ 调 advanceDimensionAction 解析+推进。
+ * - 解析在后台静默执行（仅禁用输入，不弹 loading/toast）。
+ * - 最后阶段完成 → 跳转 /profile/[id]。
+ *
+ * 侧边栏（StepNavSidebar + IntakeProgress 纯展示）已在 AppLayoutWithSidebar 渲染。
  */
 export function IntakeWorkspace({
   profile,
+  initialDimension,
   initialMessages,
 }: {
   profile: PersonProfile;
+  /** 启动阶段（来自 profile.intakeStatus.phase；ready 时回落 basics） */
+  initialDimension: IntakeDimension;
+  /** 当前阶段的历史消息（为空时用开场白） */
   initialMessages: Message[];
 }) {
-  const chatRef = useRef<ChatDialogHandle>(null);
-  const [pendingEnd, setPendingEnd] = useState(false);
   const router = useRouter();
+
+  const [dimension, setDimension] = useState<IntakeDimension>(initialDimension);
+  const [messages, setMessages] = useState<Message[]>(
+    initialMessages.length > 0
+      ? initialMessages
+      : [{ role: "assistant", content: DIMENSION_OPENING[initialDimension] }],
+  );
+  const [advancing, setAdvancing] = useState(false);
 
   const navigateToProfile = useCallback(() => {
     router.push(`/profile/${profile.id}`);
   }, [router, profile.id]);
 
-  const handleSkip = useCallback(() => {
-    chatRef.current?.send("跳过当前问题，请继续追问下一个维度。");
-  }, []);
-
-  const handleEnd = useCallback(() => {
-    // 打字中保护：若用户正在输入，则标记待跳转，等其提交/失焦后再走
-    if (chatRef.current?.isTyping()) {
-      setPendingEnd(true);
-      return;
-    }
-    navigateToProfile();
-  }, [navigateToProfile]);
+  // 阶段完成：后台解析 + 推进。
+  const handlePhaseComplete = useCallback(
+    async () => {
+      if (advancing) return;
+      setAdvancing(true);
+      try {
+        const { next } = await advanceDimensionAction(profile.id, dimension);
+        if (next === "ready") {
+          navigateToProfile();
+          return;
+        }
+        // 切到下一阶段，重置对话为新阶段开场白
+        setDimension(next);
+        setMessages([{ role: "assistant", content: DIMENSION_OPENING[next] }]);
+      } finally {
+        setAdvancing(false);
+      }
+    },
+    [advancing, profile.id, dimension, navigateToProfile],
+  );
 
   const handleExit = useCallback(() => {
     router.push("/");
   }, [router]);
 
-  // 待跳转：用户提交后若不再处于打字中，则完成结束问答的跳转
-  const handleAfterSend = useCallback(() => {
-    if (pendingEnd && !chatRef.current?.isTyping()) {
-      setPendingEnd(false);
-      navigateToProfile();
-    }
-  }, [pendingEnd, navigateToProfile]);
-
   return (
-    <div className="flex h-screen overflow-hidden">
-      <IntakeSidebar
-        profile={profile}
-        pendingEnd={pendingEnd}
-        onSkip={handleSkip}
-        onEnd={handleEnd}
+    <div className="flex h-full flex-col">
+      <ChatDialog
+        key={dimension}
+        profileId={profile.id}
+        dimension={dimension}
+        initialMessages={messages}
+        onPhaseComplete={handlePhaseComplete}
         onExit={handleExit}
+        advancing={advancing}
       />
-      <main className="flex flex-1 flex-col">
-        <ChatDialog
-          ref={chatRef}
-          profileId={profile.id}
-          initialMessages={initialMessages}
-          onAfterSend={handleAfterSend}
-        />
-      </main>
     </div>
   );
 }

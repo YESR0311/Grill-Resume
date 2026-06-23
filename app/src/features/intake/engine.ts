@@ -8,7 +8,13 @@ import { chat, extractJson, requireTaskRoute, type ChatMessage } from "@/feature
 import { PROMPTS_DIR } from "@/features/ai/prompts";
 import { getProfile, saveProfile, createProfile } from "@/features/profile/store";
 import type { PersonProfile } from "@/features/profile/types";
-import { getIntakeLog, appendMessages } from "./store";
+import { getIntakeLog, getIntakeLogByDimension, appendMessages } from "./store";
+import { loadIntakePrompt } from "./prompts-loader";
+import {
+  CHAT_PROMPT_BY_DIMENSION,
+  DIMENSION_LABEL,
+  type IntakeDimension as IntakeDimensionV2,
+} from "./dimensions";
 
 // ─── 问答维度 ────────────────────────────────────────────
 // 脚本定义必须覆盖的维度，靠 prompt 引导模型逐一覆盖
@@ -22,7 +28,72 @@ const SYSTEM_PROMPT = readFileSync(path.join(PROMPTS_DIR, "intake-system.md"), "
 // 对话历史截断：保留 system + 最近 N 轮（每轮 user+assistant，共 2 条），降低 token 消耗
 const MAX_HISTORY_TURNS = 10;
 
-// ─── 初始问候语 ──────────────────────────────────────────
+// ─── intake-v2：自由对话（不解析结构化），AI 决定阶段完成 ──────────────
+
+/** AI 判定阶段完成的隐藏标记，前端检测后去掉再展示并触发解析。 */
+export const PHASE_COMPLETE_MARKER = "<<PHASE_COMPLETE>>";
+
+export type ChatTurnResult = {
+  /** 对用户展示的回复（已去掉 PHASE_COMPLETE 标记） */
+  reply: string;
+  /** AI 是否判定本阶段已聊够 */
+  phaseComplete: boolean;
+};
+
+/**
+ * intake-v2 处理一轮自由对话。
+ * - 用对应阶段的 chat-<dimension> system prompt 约束 AI 行为。
+ * - 只取本阶段（dimension）对话历史作上下文。
+ * - 不解析结构化数据（解析交给 /api/intake/parse）。
+ * - 检测 PHASE_COMPLETE_MARKER，去标记后返回 phaseComplete。
+ * - 把对话写入 intake_messages（带 dimension 标记）。
+ */
+export async function runChatTurn(
+  profileId: string,
+  dimension: IntakeDimensionV2,
+  userMessage: string,
+): Promise<ChatTurnResult> {
+  await (getProfile(profileId) ?? createProfile({ id: profileId }));
+
+  const route = requireTaskRoute("intake");
+  const systemPrompt = loadIntakePrompt(CHAT_PROMPT_BY_DIMENSION[dimension] as "chat-basics");
+
+  // 只取本阶段对话历史（避免跨阶段串扰）
+  const log = await getIntakeLogByDimension(profileId, dimension);
+  const recentHistory = log.messages.slice(-MAX_HISTORY_TURNS * 2);
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...recentHistory.map<ChatMessage>((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: userMessage },
+  ];
+
+  // 自由对话：不要 JSON 模式
+  const { text } = await chat(route.conn, route.model, { messages, temperature: 0.7 });
+
+  const raw = (text ?? "").trim();
+  const phaseComplete = raw.includes(PHASE_COMPLETE_MARKER);
+  // 去掉标记（含其前后空白行）后展示
+  let reply = raw.replace(new RegExp(`\\n*\\s*${escapeRegExp(PHASE_COMPLETE_MARKER)}\\s*`, "g"), "").trim();
+  if (!reply) {
+    // 极端情况：AI 只回了标记，给一个收尾兜底文案
+    reply = `好的，「${DIMENSION_LABEL[dimension]}」这部分我们先聊到这里。`;
+  }
+
+  // 写入对话（带 dimension 标记）
+  await appendMessages(profileId, [
+    { role: "user", content: userMessage, dimension },
+    { role: "assistant", content: reply, dimension },
+  ]);
+
+  return { reply, phaseComplete };
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// ─── 初始问候语（v1 legacy） ──────────────────────────────────────────
 
 export function buildOpeningMessage(): ChatMessage {
   return {
@@ -158,7 +229,7 @@ export async function runIntakeRound(
   // 把对话写入 intake log（assistant 存对用户可见的 reply，不存原始 JSON）
   await appendMessages(profileId, [
     { role: "user", content: userMessage },
-    { role: "assistant", content: replyText },
+    { role: "assistant", content: result.reply },
   ]);
 
   // 把结构化信息 merge 进档案
@@ -173,7 +244,7 @@ export async function runIntakeRound(
   }
 
   return {
-    reply: replyText,
+    reply: result.reply,
     coveredDimensions: profile.intakeStatus.coveredDimensions,
     phase: profile.intakeStatus.phase,
   };

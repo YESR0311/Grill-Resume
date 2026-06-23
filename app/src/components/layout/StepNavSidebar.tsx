@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { MessageSquare, FileText, BarChart3, Sparkles } from "lucide-react";
+import { MessageSquare, FileText, BarChart3, Sparkles, Flame } from "lucide-react";
+import { IntakeProgress } from "./IntakeProgress";
 
 /**
- * 其他页面侧边栏：步骤导航（Server Component）
+ * 侧边栏：步骤导航（Server Component）
  *
- * 显示 4 个阶段：问答 → 档案 → 评估 → 润色
- * 当前步骤高亮，已完成步骤可点击
+ * - 仅在「问答采集」页时，步骤按钮下方展示 IntakeProgress
+ * - 标题：花体 Grill-Resume + logo icon
+ * - 当前步骤高亮，已完成步骤可点击
  *
  * 颜色设计：
- * - 暗色模式：背景 #242424，当前步骤用浅色文字确保可读
- * - 浅色模式：背景 #FBF9F5，当前步骤用深色文字
- *
- * reachableSteps 由页面传入（根据当前 profile 状态计算）
+ * - 当前步骤：terracotta 背景 + 白色文字
+ * - 可达步骤：terracotta-tint 背景 + terracotta 文字
+ * - 不可达：灰禁用
  */
 export function StepNavSidebar({
   currentStep,
@@ -32,12 +33,19 @@ export function StepNavSidebar({
   return (
     <div className="flex h-full flex-col">
       {/* 标题 */}
-      <div className="border-b border-warm-hairline px-6 py-4">
-        <h2 className="font-display text-lg font-medium text-foreground">简历制作流程</h2>
+      <div className="border-b border-warm-hairline px-6 py-4 dark:border-border">
+        <Link href="/" className="group flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-terracotta text-white shadow-sm transition-transform group-hover:rotate-[-6deg]">
+            <Flame size={16} strokeWidth={2.25} />
+          </span>
+          <span className="font-display text-xl font-semibold tracking-tight text-foreground transition-colors group-hover:text-terracotta">
+            Grill-Resume
+          </span>
+        </Link>
       </div>
 
-      {/* 步骤列表 */}
-      <div className="flex-1 p-4">
+      {/* 步骤列表 + 问答进度（仅 intake 页） */}
+      <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-2">
           {steps.map((step) => {
             const isCurrent = step.id === currentStep;
@@ -45,7 +53,6 @@ export function StepNavSidebar({
             const Icon = step.icon;
 
             if (!isReachable && !isCurrent) {
-              // 不可达且非当前：灰色禁用态
               return (
                 <div
                   key={step.id}
@@ -63,25 +70,22 @@ export function StepNavSidebar({
             }
 
             if (isCurrent) {
-              // 当前步骤：暗色模式用浅色文字，浅色模式用深色文字
-              // 使用 dark: 前缀确保对比度
               return (
                 <div
                   key={step.id}
-                  className="flex items-center gap-3 rounded-lg bg-terracotta px-4 py-3 shadow-lg dark:bg-terracotta/90 dark:border dark:border-terracotta/50"
+                  className="flex items-center gap-3 rounded-lg bg-primary px-4 py-3 shadow-md"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 dark:bg-white/10">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
                     <Icon size={16} className="text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-white dark:text-white">{step.label}</p>
-                    <p className="text-xs text-white/80 dark:text-white/70">当前步骤</p>
+                    <p className="text-sm font-semibold text-white">{step.label}</p>
+                    <p className="text-xs text-white/80">当前步骤</p>
                   </div>
                 </div>
               );
             }
 
-            // 可达且非当前：可点击
             return (
               <Link
                 key={step.id}
@@ -99,6 +103,13 @@ export function StepNavSidebar({
             );
           })}
         </div>
+
+        {/* 问答进度：仅在 intake 页（当前步骤为 intake 且有 profileId）显示 */}
+        {currentStep === "intake" && profileId && (
+          <div className="mt-6 border-t border-warm-hairline pt-6 dark:border-border">
+            <IntakeProgress profileId={profileId} />
+          </div>
+        )}
       </div>
 
       {/* 底部提示 */}

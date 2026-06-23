@@ -56,6 +56,8 @@ export const ResumeStyleSchema = z.object({
   templateId: z.string().default("chrono-minimal"),
   fontFamily: z.string().default("'Helvetica Neue', Arial, 'PingFang SC', sans-serif"),
   fontSize: z.number().default(14), // 正文字号 px
+  /** 主题 ID（themes.ts 定义的 5 主题之一）；老 draft 缺省时用 "whiteBlue"。 */
+  themeId: z.string().default("whiteBlue"),
   colorScheme: z.object({
     primary: z.string().default("#2563eb"),   // 主色（标题/强调）
     accent: z.string().default("#64748b"),    // 辅色（次要文字）

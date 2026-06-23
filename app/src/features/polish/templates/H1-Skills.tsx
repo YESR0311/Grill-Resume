@@ -1,12 +1,15 @@
 import type { ResumeDraft, ResumeStyle } from "../types";
-import { PhotoPlaceholder } from "./PhotoPlaceholder";
+import { TopHeader } from "./TopHeader";
+import { getTemplateDesign } from "../template-style";
 
 /**
  * H1-Skills 模板：混合·技能优先
- * 特点：技能模块前置，适合技术岗突出能力栈
+ *
+ * 特点：智能·科技主题（紫罗兰），技能模块前置，证件照在左侧。
  */
 
 export function H1Skills({ draft, style }: { draft: ResumeDraft; style: ResumeStyle }) {
+  const design = getTemplateDesign("h1-skills");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -16,18 +19,8 @@ export function H1Skills({ draft, style }: { draft: ResumeDraft; style: ResumeSt
   };
 
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      <PhotoPlaceholder position="left" />
-      <header className="mb-6 ml-36">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: style.colorScheme.primary }}>
-          {draft.name}
-        </h1>
-        <div className="text-base mb-1" style={{ color: style.colorScheme.accent }}>{draft.title}</div>
-        <div className="text-sm flex gap-4" style={{ color: style.colorScheme.accent }}>
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} />
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-5">
           {key === "summary" && draft.summary && (

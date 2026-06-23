@@ -155,9 +155,11 @@ const SCHEMA_STATEMENTS: readonly string[] = [
     profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
     content TEXT NOT NULL,
+    dimension TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS intake_messages_profile_id_idx ON intake_messages(profile_id, created_at)`,
+  // 注意：dimension 索引留到 v4→v5 forward 迁移段创建，SCHEMA_STATEMENTS 直接引用 dimension 列会让老库升 v5 在这里炸。
   `CREATE TABLE IF NOT EXISTS evaluation_reports (
     id TEXT PRIMARY KEY,
     profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -233,7 +235,8 @@ const SCHEMA_STATEMENTS: readonly string[] = [
 // CREATE TABLE IF NOT EXISTS 不会给已存在的旧表补列，故对旧库做 ALTER/回填/DROP 迁移。
 // v4（Sprint 2, 06-21-FE-R2）：evaluation_items UNIQUE(report_id, bullet_id) → UNIQUE(report_id, target_type, target_id)，
 //   以支持按条目整体评估。旧 evaluation_reports + evaluation_items 全部清空（bullet 索引无法映射到条目粒度）。
-const SCHEMA_VERSION = 4;
+// v5（intake-v2）：intake_messages 加 dimension 列（6 阶段打标）+ (profile_id, dimension, created_at) 复合索引。
+const SCHEMA_VERSION = 5;
 
 function hasColumn(db: Database.Database, table: string, column: string): boolean {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -442,6 +445,18 @@ function applyForwardMigrations(db: Database.Database, fromVersion: number): voi
       ).run();
     }
   }
+  // v4 → v5：intake_messages 加 dimension 列（6 阶段拆解，每条消息打标当前阶段），
+  // 加 (profile_id, dimension, created_at) 复合索引加速按阶段查询。
+  if (fromVersion < 5) {
+    if (tableExists(db, "intake_messages")) {
+      if (!hasColumn(db, "intake_messages", "dimension")) {
+        db.prepare("ALTER TABLE intake_messages ADD COLUMN dimension TEXT NOT NULL DEFAULT ''").run();
+      }
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS intake_messages_dimension_idx ON intake_messages(profile_id, dimension, created_at)",
+      ).run();
+    }
+  }
 }
 
 function applyMigrations(db: Database.Database): void {
@@ -461,6 +476,31 @@ function applyMigrations(db: Database.Database): void {
     forward(current);
     db.pragma(`user_version = ${SCHEMA_VERSION}`);
   }
+
+  // 最后一道自愈（独立于 user_version 路径）：
+  // 老库可能因之前 SCHEMA_STATEMENTS 顺序 bug（dimension 索引在 v4→v5 ALTER 之前执行）导致迁移卡死，
+  // 数据库停留在"v4 已 init + dimension 列未建"的破损状态。
+  // 这里在 getDb() 末尾再扫一遍必需列/索引，缺啥补啥（幂等），保证后续 query 不会再炸 "no such column"。
+  ensureSchema(db);
+}
+
+/**
+ * Schema 自愈：补齐必需列/索引。幂等，老库/破损库都安全。
+ * 设计原则：
+ *  1. 不修改 user_version —— 这是补丁层，跟正式 forward migration 解耦
+ *  2. 每次 getDb() 都跑一次，开销可忽略（O(列数)）
+ *  3. 仅补必需列；不重命名/不丢数据
+ */
+function ensureSchema(db: Database.Database): void {
+  // intake_messages.dimension（Sprint 06-22-intake-v2）
+  if (tableExists(db, "intake_messages") && !hasColumn(db, "intake_messages", "dimension")) {
+    db.exec("ALTER TABLE intake_messages ADD COLUMN dimension TEXT NOT NULL DEFAULT ''");
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS intake_messages_dimension_idx ON intake_messages(profile_id, dimension, created_at)",
+    );
+    console.warn("[db] healed: added dimension column + index to intake_messages");
+  }
+  // 后续若有新补丁可在此追加（用 tableExists/hasColumn 守卫，幂等）
 }
 
 export function getDb(): Database.Database {

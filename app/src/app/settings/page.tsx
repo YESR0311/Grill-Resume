@@ -40,7 +40,7 @@ export default async function SettingsPage() {
           <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">
             <h2 className="text-xl font-semibold">AI 连接</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              配置 AI 模型的 Base URL 和 API Key。所有数据加密存储在本机。
+              配置 AI 模型的 Base URL 和 API Key。
             </p>
             <ConnectionForm />
             {connections.length > 0 && (

@@ -1,12 +1,16 @@
 import type { ResumeDraft, ResumeStyle } from "../types";
-import { PhotoPlaceholder } from "./PhotoPlaceholder";
+import { TopHeader } from "./TopHeader";
+import { getTemplateDesign } from "../template-style";
 
 /**
  * T4-Compact 模板：时序·紧凑版
- * 特点：窄边距 + 1.4 倍行距，信息密度高，适合经验丰富者
+ *
+ * 特点：黑蓝·ATS 紧凑主题，1.4 倍行距，信息密度高。
+ * 证件照位置：右上角。
  */
 
 export function T4Compact({ draft, style }: { draft: ResumeDraft; style: ResumeStyle }) {
+  const design = getTemplateDesign("t4-compact");
   const sheetStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
@@ -16,18 +20,8 @@ export function T4Compact({ draft, style }: { draft: ResumeDraft; style: ResumeS
   };
 
   return (
-    <div className="relative bg-white" style={sheetStyle}>
-      <PhotoPlaceholder position="right" />
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: style.colorScheme.primary }}>
-          {draft.name}
-        </h1>
-        <div className="text-sm mb-1" style={{ color: style.colorScheme.accent }}>{draft.title}</div>
-        <div className="text-xs flex gap-3" style={{ color: style.colorScheme.accent }}>
-          {draft.email && <span>{draft.email}</span>}
-          {draft.phone && <span>{draft.phone}</span>}
-        </div>
-      </header>
+    <div className="relative" style={sheetStyle}>
+      <TopHeader draft={draft} style={style} photo={design.photo} variant="compact" />
       {style.sectionOrder.map((key) => (
         <section key={key} className="mb-3">
           {key === "summary" && draft.summary && (

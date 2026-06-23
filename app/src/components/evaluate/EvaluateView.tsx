@@ -13,6 +13,7 @@ import type { EvaluationReport, EvaluationItem } from "@/features/evaluation/typ
 import { reportToMarkdown } from "@/features/evaluation/report-markdown";
 import { Button } from "@/components/ui/button";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -109,6 +110,7 @@ export function EvaluateView({
   }, [profileId]);
 
   return (
+    <ScrollArea className="h-[calc(100vh-3.5rem)]">
     <div className="mx-auto w-full max-w-4xl">
       {/* 面包屑：返回档案 */}
       <div className="mb-6">
@@ -167,6 +169,7 @@ export function EvaluateView({
         </DialogContent>
       </Dialog>
     </div>
+    </ScrollArea>
   );
 }
 

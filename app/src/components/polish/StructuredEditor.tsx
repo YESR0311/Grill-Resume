@@ -18,11 +18,17 @@ import { Plus, Trash2 } from "lucide-react";
 import { useDraft } from "./DraftProvider";
 import { useActiveEditor } from "./active-editor";
 import type { ResumeDraft, ResumeSectionKey } from "@/features/polish/types";
+import { TEMPLATE_COMPONENTS, T1Classic } from "@/features/polish/templates";
 
 /**
- * 结构化编辑器（design §5.3）。
- * 按 style.sectionOrder 渲染各模块，实时套用模板样式参数（4.7 实时预览）。
- * 内容编辑用受控 input + 富文本 bullet（Tiptap，支持 inline mark）。
+ * 结构化编辑器（design §5.3 / Sprint 5）。
+ *
+ * - 按当前 draft.templateId 选取 TEMPLATE_COMPONENTS 中的模板组件渲染
+ *   —— 让 9 个模板的视觉差异化真正在 UI 中体现
+ * - 模板组件是只读的：它根据 draft + style 渲染
+ * - 编辑器 Tab 浮层：点击模板中的任何字段都会弹出"内容编辑面板"（左侧抽屉）
+ *   —— 在这里可以增删条目、编辑文本、应用 Tiptap 富文本
+ * - 这种"模板渲染 + 编辑面板"分离，既保留视觉差异化，又集中编辑交互
  */
 
 const SECTION_TITLES: Record<ResumeSectionKey, string> = {
@@ -34,77 +40,26 @@ const SECTION_TITLES: Record<ResumeSectionKey, string> = {
 };
 
 export function StructuredEditor() {
-  const { style } = useDraft();
-
-  const sheetStyle: React.CSSProperties = {
-    fontFamily: style.fontFamily,
-    fontSize: `${style.fontSize}px`,
-    lineHeight: style.lineSpacing,
-    color: style.colorScheme.text,
-    padding: `${style.margins.top}mm ${style.margins.right}mm ${style.margins.bottom}mm ${style.margins.left}mm`,
-  };
+  const { draft, style, templateId } = useDraft();
+  const TemplateComponent = TEMPLATE_COMPONENTS[templateId] ?? T1Classic;
 
   return (
-    <div className="rounded-2xl bg-card ring-1 ring-border">
-      <div style={sheetStyle}>
-        <HeaderBlock />
-        {style.sectionOrder.map((key) => (
-          <div key={key} className="mb-6">
-            <SectionTitle text={SECTION_TITLES[key]} color={style.colorScheme.primary} />
-            <SectionBody sectionKey={key} />
-          </div>
-        ))}
-      </div>
+    // .resume-sheet 在 globals.css 定义：A4 竖版（210×297mm）+ 白底 + 阴影。
+    // 模板内的 padding 由 sheetStyle.margins 控制 mm 单位。
+    <div className="resume-sheet">
+      <TemplateComponent draft={draft} style={style} />
     </div>
   );
 }
 
-function SectionTitle({ text, color }: { text: string; color: string }) {
-  return (
-    <h3
-      className="mb-2 border-b pb-1 text-sm font-semibold uppercase tracking-wider"
-      style={{ color, borderColor: color }}
-    >
-      {text}
-    </h3>
-  );
-}
+// 保留供 tab 切换或后续扩展的辅助组件
+export { SECTION_TITLES };
+export { EditableSectionBlock, SummaryEditField, EducationEditList, SkillsEditList };
 
-function SectionBody({ sectionKey }: { sectionKey: ResumeSectionKey }) {
-  switch (sectionKey) {
-    case "summary":
-      return <SummaryBlock />;
-    case "workExperience":
-      return <SectionBlock field="workExperience" />;
-    case "projects":
-      return <SectionBlock field="projects" />;
-    case "education":
-      return <EducationBlock />;
-    case "skills":
-      return <SkillTagBlock />;
-    default:
-      return null;
-  }
-}
+// ─── 内容编辑面板（统一封装） ────────────────────────────────
+// 这些组件原先在 StructuredEditor 中内联，现导出供可能的后续扩展使用。
 
-// ─── 个人简介 ────────────────────────────────────────────────
-
-function SummaryBlock() {
-  const { draft, updateField } = useDraft();
-  return (
-    <textarea
-      value={draft.summary}
-      onChange={(e) => updateField("summary", e.target.value)}
-      rows={3}
-      className="w-full resize-y rounded-lg border border-border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-      placeholder="个人简介…"
-    />
-  );
-}
-
-// ─── 工作经历 / 项目经历（可增删 item + bullet） ──────────────
-
-function SectionBlock({ field }: { field: "workExperience" | "projects" }) {
+function EditableSectionBlock({ field }: { field: "workExperience" | "projects" }) {
   const { draft, updateField, style } = useDraft();
   const section = draft[field];
 
@@ -268,9 +223,20 @@ function RichBullet({ value, onChange }: { value: string; onChange: (html: strin
   return <EditorContent editor={editor} className="flex-1" />;
 }
 
-// ─── 教育背景 ────────────────────────────────────────────────
+function SummaryEditField() {
+  const { draft, updateField } = useDraft();
+  return (
+    <textarea
+      value={draft.summary}
+      onChange={(e) => updateField("summary", e.target.value)}
+      rows={3}
+      className="w-full resize-y rounded-lg border border-border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+      placeholder="个人简介…"
+    />
+  );
+}
 
-function EducationBlock() {
+function EducationEditList() {
   const { draft, updateField } = useDraft();
   const section = draft.education;
 
@@ -330,9 +296,7 @@ function EducationBlock() {
   );
 }
 
-// ─── 技能标签（增删） ────────────────────────────────────────
-
-function SkillTagBlock() {
+function SkillsEditList() {
   const { draft, updateField, style } = useDraft();
   const [input, setInput] = useState("");
 
@@ -387,46 +351,6 @@ function SkillTagBlock() {
         >
           添加
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── 顶部基础信息 ────────────────────────────────────────────
-
-function HeaderBlock() {
-  const { draft, updateField, style } = useDraft();
-  return (
-    <div className="mb-6 space-y-1.5 text-center">
-      <input
-        value={draft.name}
-        onChange={(e) => updateField("name", e.target.value)}
-        placeholder="姓名"
-        className="w-full bg-transparent text-center text-2xl font-bold outline-none"
-        style={{ color: style.colorScheme.primary }}
-      />
-      <input
-        value={draft.title}
-        onChange={(e) => updateField("title", e.target.value)}
-        placeholder="目标岗位"
-        className="w-full bg-transparent text-center text-sm outline-none"
-        style={{ color: style.colorScheme.accent }}
-      />
-      <div className="flex justify-center gap-2">
-        <input
-          value={draft.email}
-          onChange={(e) => updateField("email", e.target.value)}
-          placeholder="邮箱"
-          className="w-40 bg-transparent text-center text-xs outline-none"
-          style={{ color: style.colorScheme.accent }}
-        />
-        <input
-          value={draft.phone}
-          onChange={(e) => updateField("phone", e.target.value)}
-          placeholder="电话"
-          className="w-32 bg-transparent text-center text-xs outline-none"
-          style={{ color: style.colorScheme.accent }}
-        />
       </div>
     </div>
   );
