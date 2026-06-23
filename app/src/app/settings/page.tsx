@@ -11,6 +11,7 @@ import {
 import { SEARCH_KINDS } from "@/features/settings/types";
 import { TestConnectionButton } from "@/components/settings/TestConnectionButton";
 import { ThemeToggleClient } from "./ThemeToggleClient";
+import { SettingsBackButton } from "./SettingsBackButton";
 import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
@@ -234,4 +235,3 @@ async function SearchProviderForm() {
 }
 
 // ─── 返回按钮（client component，router.back） ────────
-import { SettingsBackButton } from "./SettingsBackButton";

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProfile } from "@/features/profile/store";
+import { getProfile, createProfile } from "@/features/profile/store";
 import { getReachableSteps } from "@/features/profile/step-access";
 import { getIntakeLogByDimension } from "@/features/intake/store";
 import { DIMENSION_OPENING, INTAKE_DIMENSIONS, type IntakeDimension } from "@/features/intake/dimensions";
@@ -17,11 +17,13 @@ type Props = { params: Promise<{ id: string }> };
  * - currentDimension 来自 profile.intakeStatus.phase（ready 时回落到 basics 让用户补充）。
  * - 只加载当前阶段的对话历史；首次进入该阶段时用开场白。
  * - 侧边栏 StepNavSidebar + IntakeProgress（纯展示）。
+ *
+ * Lazy profile：访问 /intake/[id] 时若 profile 不存在则自动创建，
+ * 避免在 /intake/page.tsx（直接 redirect）做写入。
  */
 export default async function IntakePage({ params }: Props) {
   const { id } = await params;
-  const profile = getProfile(id);
-  if (!profile) notFound();
+  const profile = getProfile(id) ?? createProfile({ id });
 
   const reachableSteps = await getReachableSteps(id);
 
